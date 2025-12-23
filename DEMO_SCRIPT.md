@@ -1,229 +1,192 @@
-# Video Demo Walkthrough Script
+# Video Demo Script (~7 Minutes)
 
-**Total Time:** 8-10 minutes  
+**Target Time:** 7 minutes  
 **Recording Software:** QuickTime, Loom, or OBS  
 **Resolution:** 1920x1080 recommended
 
 ---
 
-## Pre-Recording Setup (Do Before You Hit Record)
+## Pre-Recording Setup (Do This BEFORE You Hit Record)
 
 ```bash
 cd /Users/baylorjeppsen/Desktop/is693r-dagster-dbt-demo
-make clean      # Start fresh
-make setup      # Install dependencies
-```
-
-Have these ready:
-- Terminal window (full screen or large)
-- Browser ready (will open later)
-- This script visible on a second monitor or printed
-
----
-
-## PART 1: Introduction (0:00 - 1:00)
-
-### What to Show
-- Your terminal with the project folder open
-
-### What to Say
-> "Hi, I'm Baylor. This is my IS 693R independent study project demonstrating a modern ELT analytics pipeline using Dagster, dbt, and DuckDB."
->
-> "I'll show you how I built a complete data pipeline for Bidi Contracting, an AI platform for construction blueprint takeoffs and cost estimation - covering orchestration, transformations, and data quality - concepts from DP-203 and the Dagster courses."
-
-### Commands to Run
-```bash
-# Show the project structure
-ls -la
-```
-
-### What to Point Out
-- "Here you can see the main components: dagster_project for orchestration, dbt_project for transformations"
-- "This pipeline processes blueprint pages, extracts takeoff quantities using AI, and generates cost estimates"
-
----
-
-## PART 2: Run the Full Pipeline (1:00 - 3:00)
-
-### What to Say
-> "Let me run the complete pipeline with one command."
-
-### Commands to Run
-```bash
+make clean
 make demo
 ```
 
-### While It Runs, Explain
-> "Step 1 is extracting data - I'm generating realistic fake data using Python's Faker library. About 5,000 rows across 7 tables: projects, blueprint pages, cost library, takeoff items, estimates, estimate line items, and QA reviews."
->
-> "Step 2 loads this into DuckDB, our local data warehouse."
->
-> "Step 3 runs dbt transformations - staging models that clean the data, then mart models including fact tables for takeoffs and estimates, plus analytics marts for the dashboard."
->
-> "Step 4 runs data quality checks including confidence score validation."
->
-> "Step 5 generates this metrics report you see at the bottom."
-
-### What to Point Out When It Finishes
-- Total estimate value
-- AI extraction percentage (~70%)
-- Average confidence score
-- "All dbt tests passed"
+Have these tabs already open:
+- Browser Tab 1: bidicontracting.com (homepage only)
+- Browser Tab 2: localhost:3000 (Dagster — start with `make dagster`)
+- VS Code with project open
+- This script on second monitor
 
 ---
 
-## PART 3: Dagster UI - Asset Graph (3:00 - 5:30)
+## PART 1: Hook & Context (45 sec)
 
-### What to Say
-> "Now let me show you the Dagster UI where you can visualize and manage the pipeline."
+### Show: Bidi homepage (DO NOT interact — just show for 10 seconds)
 
-### Commands to Run
-```bash
-make dagster
-```
+> "This is Bidi Contracting — we automate blueprint takeoffs and cost estimation using AI."
+>
+> "This is the product context this pipeline supports."
+>
+> "This project let me formalize work I was already passionate about and ground it in data engineering theory."
+>
+> **[COURSE TIE-IN]** "Each course shaped a different layer — Dagster for orchestration, dbt for transformations, and DP-203 for the overall ELT design."
 
-### Wait for It to Start, Then
-> "Opening localhost:3000 in my browser..."
-
-Open browser to: **http://localhost:3000**
-
-### Navigation Steps (Do These Slowly for the Camera)
-
-1. **Click "Assets" in the left sidebar**
-   > "Here's the asset catalog showing all our data assets."
-
-2. **Click "View global asset lineage" (or the graph icon)**
-   > "This is the asset graph - the visual DAG of our pipeline."
-   
-3. **Point out the flow**
-   > "You can see the flow: raw_csv_files generates our blueprint and takeoff data, duckdb_raw_tables loads it into the warehouse, then the dbt models transform it through staging to marts, quality checks validate confidence scores and quantities, and finally the metrics report is generated."
-
-4. **Click on one asset (e.g., "fct_takeoffs")**
-   > "Clicking on an asset shows its details - when it was last materialized, metadata like row counts and confidence statistics, and its upstream dependencies."
-
-5. **Click "Materialize all" button (optional - to show it running)**
-   > "I can re-run the entire pipeline by clicking Materialize All. Dagster handles the dependency ordering automatically."
-
-6. **Click "Runs" in the left sidebar**
-   > "The Runs view shows execution history. I can see all my previous runs, their status, and drill into logs."
-
-### Stop Dagster
-Press `Ctrl+C` in terminal
+**Action:** Switch to VS Code
 
 ---
 
-## PART 4: dbt Documentation & Lineage (5:30 - 7:00)
+## PART 2: Pipeline Code Walkthrough (2 min)
 
-### What to Say
-> "dbt also generates documentation with its own lineage graph. Let me show you that."
+### File 1: `dagster_project/assets/extract.py`
 
-### Commands to Run
+**Show:** Lines ~1-50 (DATA_MODE toggle), briefly scroll to COST_CODES
+
+> "This is the Extract step. Notice the DATA_MODE toggle — 'demo' for synthetic data, 'live' for production once our AI is integrated."
+>
+> "The pipeline generates representative project data with industry-standard CSI cost codes."
+
+---
+
+### File 2: `dbt_project/models/staging/stg_takeoff_items.sql`
+
+**Show:** Full file (~58 lines)
+
+> "Here's the Transform step. Staging models clean raw data — casting types, creating confidence tiers, flagging items for human review."
+>
+> "This is where messy data becomes analysis-ready."
+>
+> **[COURSE TIE-IN]** "The dbt course stressed separating raw data, staging, and marts. I applied that directly — staging cleans AI output, marts add business logic like readiness thresholds."
+
+---
+
+### File 3: `dbt_project/models/marts/mart_estimation_dashboard.sql`
+
+**Show:** Scroll to final SELECT (~lines 100-140)
+
+> "Mart models add business logic. One row per project with page counts, confidence metrics, and readiness status."
+>
+> "Analytics-ready data."
+
+---
+
+## PART 3: Dagster UI (1.5 min)
+
+### Browser: localhost:3000 (already running)
+
+**1. Show the global asset lineage**
+
+> "Data flows left to right: raw files → DuckDB → staging → marts → quality checks → report."
+>
+> "Dagster determines execution order automatically."
+>
+> **[COURSE TIE-IN]** "The Dagster course emphasized thinking in data assets, not scheduled jobs. That's why this graph is asset-based — blueprint pages, takeoffs, estimates — rather than time-based scripts."
+
+**2. Click on one asset (e.g., `fct_takeoffs`)**
+
+> "Every asset has metadata — when it ran, row counts. This is observability."
+
+**3. (If time) Point to the dbt assets**
+
+> "When Dagster materializes these dbt assets, it runs `dbt build` — which includes all my dbt tests. Uniqueness, not-null, relationships, valid ranges. Data quality is baked into the orchestration."
+
+**Action:** Move to next section (leave Dagster running or Ctrl+C)
+
+---
+
+## PART 4: dbt Docs (1 min)
+
+### Terminal:
 ```bash
 make dbt-docs
 ```
 
-### Wait for It to Start, Then
-Open browser to: **http://localhost:8080**
+### Browser: localhost:8080
 
-### Navigation Steps
+**1. Click `mart_estimation_dashboard` in sidebar**
 
-1. **You'll see the dbt docs homepage**
-   > "This is auto-generated documentation for all our dbt models."
+> "Every column is documented. Analysts understand the data without asking me."
 
-2. **Click on a model in the left sidebar (e.g., "fct_takeoffs")**
-   > "Each model has documentation showing its columns, description, and the SQL that generates it."
+**2. Click Lineage Graph button**
 
-3. **Click the blue "Lineage Graph" button (bottom right corner)**
-   > "Here's the data lineage - you can see how fct_takeoffs depends on staging models, which depend on our raw sources."
+> "Data lineage — if numbers look wrong, I trace back to source. This is production debugging."
 
-4. **Click on "mart_estimation_dashboard" or another model to show the graph changing**
-   > "The lineage updates to show dependencies for any model I select."
-
-5. **Mention the tests**
-   > "dbt also shows which tests are configured for each model - I have 50+ tests including uniqueness, not null, referential integrity, accepted values, and custom tests for quantity and confidence validation."
-
-### Stop dbt docs
-Press `Ctrl+C` in terminal
+**Action:** Ctrl+C to stop
 
 ---
 
-## PART 5: Code Walkthrough (7:00 - 8:30)
+## PART 5: Dashboard (1 min)
 
-### What to Say
-> "Let me quickly show you the key code components."
-
-### Open These Files (Use VS Code or just `cat` in terminal)
-
-**1. Dagster Asset Definition**
+### Terminal:
 ```bash
-cat dagster_project/assets/extract.py | head -80
+make dashboard
 ```
-> "This is a Dagster asset that generates our fake construction data. You can see the CSI cost codes, disciplines like Architectural and Structural, and the confidence scores for AI extraction."
 
-**2. dbt Model**
-```bash
-cat dbt_project/models/marts/fct_takeoffs.sql | head -50
-```
-> "This is a dbt mart model - a fact table joining takeoff items with pages, projects, and the cost library. It calculates extended costs and flags low-confidence extractions."
+### Browser: localhost:8888
 
-**3. dbt Tests**
-```bash
-cat dbt_project/models/sources.yml | head -60
-```
-> "Tests are defined in YAML. Here I'm testing uniqueness, not null constraints, relationships between tables, and accepted values like extraction method must be ai, manual, or hybrid - all aligned with DP-203 data quality concepts."
+> "Here's the payoff. This dashboard queries transformed data live."
 
-**4. Quality Checks**
-```bash
-cat dagster_project/assets/quality.py | head -50
-```
-> "I also have Dagster asset checks that validate confidence distributions and flag projects with too many low-confidence takeoffs."
+**Point briefly to:**
+
+> "Representative portfolio data — projects, estimates, AI confidence scores."
+>
+> "Projects needing attention — estimators know where to focus."
+>
+> "These metrics update automatically when the pipeline runs."
+
+**That's it. Move to close.**
 
 ---
 
-## PART 6: Wrap-Up (8:30 - 9:30)
+## PART 6: Closing (30 sec)
 
-### What to Say
-> "To summarize what this project demonstrates:"
+> **[COURSE TIE-IN]** "From DP-203 concepts — ELT design, analytical modeling, and data quality — to real implementation with Dagster, dbt, and DuckDB."
 >
-> "From DP-203: Data ingestion, transformation, warehousing with fact tables and analytics marts, and data quality validation."
+> "Even though this runs locally, the architecture mirrors DP-203 patterns exactly. Data Factory for orchestration, Synapse for the warehouse, Power BI for dashboards."
 >
-> "From Dagster Essentials: Software-defined assets, dependency management, and observable data pipelines."
->
-> "From Dagster + dbt: Native integration where dbt models become Dagster assets with automatic lineage."
->
-> "The Bidi Contracting use case shows a real-world AI estimation workflow: blueprints come in, AI extracts quantities with confidence scores, the system rolls up estimates, and analysts review quality issues."
->
-> "This runs entirely locally with DuckDB, but the same patterns would scale to cloud with Azure Synapse or Databricks - blueprint files in Blob Storage, Azure AI for extraction, Synapse for the warehouse."
->
-> "The code is on my GitHub - link in the README. Thanks for watching!"
-
-### Final Command (Optional)
-```bash
-# Query the estimation dashboard
-.venv/bin/python -c "
-import duckdb
-conn = duckdb.connect('warehouse/analytics.duckdb')
-print(conn.execute('''
-    SELECT project_name, estimate_total_mid, avg_confidence, readiness_status
-    FROM main.mart_estimation_dashboard
-    ORDER BY estimate_total_mid DESC
-    LIMIT 5
-''').fetchdf())
-"
-```
+> "Thanks for watching."
 
 ---
 
-## Quick Reference Card
+## Quick Reference
 
-| Timestamp | Section | Key Command |
-|-----------|---------|-------------|
-| 0:00 | Intro | `ls -la` |
-| 1:00 | Run Pipeline | `make demo` |
-| 3:00 | Dagster UI | `make dagster` → localhost:3000 |
-| 5:30 | dbt Docs | `make dbt-docs` → localhost:8080 |
-| 7:00 | Code Tour | `cat` files |
-| 8:30 | Wrap-Up | Summary |
+| Time | Section | Duration |
+|------|---------|----------|
+| 0:00 | Hook | 45 sec |
+| 0:45 | Code walkthrough | 2 min |
+| 2:45 | Dagster UI | 1.5 min |
+| 4:15 | dbt Docs | 1 min |
+| 5:15 | Dashboard | 1 min |
+| 6:15 | Close | 30 sec |
+| **6:45** | **Done** | ✅ |
+
+---
+
+## Course → Application Mapping (What You're Showing)
+
+| Course | Taught | You Applied |
+|--------|--------|-------------|
+| **Dagster Essentials** | Asset-based orchestration | Asset graph + dependency modeling |
+| **dbt Fundamentals** | Staging → marts discipline | Clean transforms + business logic |
+| **Microsoft DP-203** | ELT + analytics engineering | End-to-end pipeline design |
+
+---
+
+## dbt Tests (They Run Automatically!)
+
+Your pipeline includes these tests (run by Dagster via `dbt build`):
+
+| Test Type | What It Checks | Example |
+|-----------|---------------|---------|
+| `unique` | No duplicate IDs | `project_id`, `takeoff_id` |
+| `not_null` | Required fields exist | `confidence`, `quantity` |
+| `relationships` | Foreign keys valid | `takeoffs → projects` |
+| `accepted_values` | Valid categories | `discipline in (A,S,C,M,E,P)` |
+| Custom tests | Business rules | `quantity > 0`, `confidence between 0 and 1` |
+
+**You don't need to run tests separately** — Dagster runs them as part of materialization.
 
 ---
 
@@ -231,32 +194,59 @@ print(conn.execute('''
 
 **If Dagster won't start:**
 ```bash
-make clean
-make setup
-make dagster
+make clean && make demo && make dagster
 ```
 
-**If port 3000 is busy:**
+**If port is busy:**
 ```bash
-lsof -i :3000  # Find what's using it
-kill -9 <PID>  # Kill it
-```
-
-**If dbt fails:**
-```bash
-make dbt-run   # Run models only
-make dbt-test  # Run tests only
+lsof -i :3000  # or :8080 or :8888
+kill -9 <PID>
 ```
 
 ---
 
-## Post-Recording Checklist
+## Pre-Record Checklist
 
-- [ ] Video shows terminal clearly
-- [ ] All commands executed successfully
-- [ ] Dagster UI asset graph visible
-- [ ] dbt lineage graph visible
-- [ ] Metrics report shown with estimation metrics
-- [ ] Mentioned DP-203, Dagster Essentials, and dbt concepts
-- [ ] Explained Bidi Contracting use case (blueprint takeoffs, AI extraction, estimates)
-- [ ] GitHub URL mentioned
+- [ ] `make demo` completed successfully
+- [ ] Dagster running at localhost:3000
+- [ ] Bidi homepage loads (don't log in)
+- [ ] VS Code has 3 files ready to show
+- [ ] Script accessible on second monitor
+
+---
+
+## What NOT to Say
+
+❌ ~~"$323 million in estimates"~~ → ✅ "Representative portfolio data"  
+❌ ~~"Maybe our AI needs more training"~~ → Just skip  
+❌ ~~"Helps with bulk purchasing"~~ → Just skip  
+❌ ~~Any interaction with live Bidi site~~ → Homepage only, 10 sec  
+
+---
+
+## The Key Lines That Justify This
+
+**Part 1 (or Close):**
+> "This project let me formalize work I was already passionate about and ground it in data engineering theory."
+
+**Part 1:**
+> "Each course shaped a different layer — Dagster for orchestration, dbt for transformations, and DP-203 for the overall ELT design."
+
+**Part 2 (after staging model):**
+> "The dbt course stressed separating raw data, staging, and marts."
+
+**Part 3 (after asset graph):**
+> "The Dagster course emphasized thinking in data assets, not scheduled jobs."
+
+**Closing:**
+> "From DP-203 concepts — ELT design, analytical modeling, and data quality — to real implementation."
+
+---
+
+## You're Ready 🎬
+
+- Content: ✅ Excellent  
+- Risk: ✅ De-risked  
+- Time: ✅ ~7 minutes  
+- Academic rigor: ✅ Strong  
+- Course attribution: ✅ Airtight

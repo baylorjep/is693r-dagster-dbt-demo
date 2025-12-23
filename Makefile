@@ -1,4 +1,4 @@
-.PHONY: setup install clean demo dagster dbt-docs dbt-run dbt-test help
+.PHONY: setup install clean demo dagster dbt-docs dbt-run dbt-test dashboard help
 
 # Colors for terminal output
 GREEN := \033[0;32m
@@ -24,6 +24,7 @@ help:
 	@echo "  $(YELLOW)make dbt-docs$(NC)   - Generate and serve dbt documentation"
 	@echo "  $(YELLOW)make dbt-run$(NC)    - Run dbt models only"
 	@echo "  $(YELLOW)make dbt-test$(NC)   - Run dbt tests only"
+	@echo "  $(YELLOW)make dashboard$(NC)  - Launch the Estimation Intelligence Dashboard"
 	@echo "  $(YELLOW)make clean$(NC)      - Remove generated files and virtual environment"
 	@echo ""
 
@@ -102,6 +103,11 @@ dbt-run: setup
 dbt-test: setup
 	@echo "$(CYAN)Running dbt tests...$(NC)"
 	DBT_DUCKDB_PATH=warehouse/analytics.duckdb $(DBT) test --project-dir dbt_project --profiles-dir dbt_project
+
+dashboard: setup
+	@echo "$(CYAN)Starting Estimation Intelligence Dashboard at http://localhost:8888 ...$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to stop$(NC)"
+	$(PYTHON) dashboard.py
 
 clean:
 	@echo "$(YELLOW)Cleaning up generated files...$(NC)"

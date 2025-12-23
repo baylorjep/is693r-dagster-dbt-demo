@@ -1,14 +1,12 @@
 """
-Extract asset: Generate raw CSV data for Bidi Contracting blueprint takeoffs.
+Extract asset: Generate or fetch data for Bidi Contracting blueprint takeoffs.
 
-This module generates deterministic fake data for:
-- projects: Construction projects requiring estimation
-- blueprint_pages: Individual pages from plan sets
-- takeoff_items: Extracted quantities from blueprints (AI or manual)
-- cost_library: Reference costs for materials and labor
-- estimates: Rolled-up cost estimates per project
-- estimate_line_items: Detailed breakdown of estimates by cost code
-- qa_reviews: Quality assurance reviews and issues
+This module supports two modes:
+- DEMO mode: Generate deterministic fake data for demonstrations
+- LIVE mode: Connect to Bidi's AI extraction API (placeholder for production)
+
+Set the environment variable BIDI_DATA_MODE to 'live' to use live data.
+Default is 'demo' mode.
 """
 
 import os
@@ -20,7 +18,10 @@ import pandas as pd
 from faker import Faker
 from dagster import asset, AssetExecutionContext, Output, MetadataValue
 
-# Set deterministic seed for reproducibility
+# Data mode: 'demo' or 'live'
+DATA_MODE = os.environ.get("BIDI_DATA_MODE", "demo").lower()
+
+# Set deterministic seed for reproducibility (demo mode only)
 SEED = 42
 random.seed(SEED)
 Faker.seed(SEED)
@@ -88,6 +89,80 @@ UOMS = {
     "conduit": "LF", "wire": "LF", "panel": "EA", "outlet": "EA",
 }
 
+
+# =============================================================================
+# LIVE MODE - Bidi AI Integration
+# =============================================================================
+
+class BidiAPIClient:
+    """
+    Bidi AI extraction.
+    
+    In production, this connects to:
+    - Bidi's blueprint processing service
+    - AI takeoff extraction endpoints
+    - Cost estimation API (Togal)
+    
+    
+    """
+    
+    def __init__(self, api_key: str = None, base_url: str = None):
+        self.api_key = api_key or os.environ.get("BIDI_API_KEY")
+        self.base_url = base_url or os.environ.get("BIDI_API_URL", "https://api.bidicontracting.com")
+        
+    def fetch_projects(self) -> pd.DataFrame:
+        """Fetch active projects from Bidi API."""
+        # TODO: Implement when API is ready
+        # response = requests.get(f"{self.base_url}/projects", headers={"Authorization": f"Bearer {self.api_key}"})
+        # return pd.DataFrame(response.json())
+        raise NotImplementedError("Live API integration pending - AI extraction in development")
+    
+    def fetch_blueprint_pages(self, project_id: int) -> pd.DataFrame:
+        """Fetch processed blueprint pages for a project."""
+        # TODO: Implement when API is ready
+        raise NotImplementedError("Live API integration pending - AI extraction in development")
+    
+    def fetch_takeoff_items(self, project_id: int) -> pd.DataFrame:
+        """Fetch AI-extracted takeoff items for a project."""
+        # TODO: Implement when API is ready
+        raise NotImplementedError("Live API integration pending - AI extraction in development")
+    
+    def fetch_cost_library(self) -> pd.DataFrame:
+        """Fetch current cost library from Bidi."""
+        # TODO: Implement when API is ready
+        raise NotImplementedError("Live API integration pending - AI extraction in development")
+
+
+def fetch_live_data(context: AssetExecutionContext) -> dict:
+    """
+    Fetch live data from Bidi's production systems.
+    
+    This function will be enabled once Bidi's AI extraction pipeline is complete.
+    For now, it raises an informative error directing users to demo mode.
+    """
+    context.log.info("Attempting to fetch live data from Bidi API...")
+    
+    client = BidiAPIClient()
+    
+    try:
+        # These will raise NotImplementedError until API is ready
+        projects = client.fetch_projects()
+        # ... additional fetches
+        
+        return {
+            "projects": projects,
+            # ... additional data
+        }
+    except NotImplementedError as e:
+        context.log.warning(f"Live mode not yet available: {e}")
+        context.log.warning("Bidi's AI extraction is still in development.")
+        context.log.warning("Please use BIDI_DATA_MODE=demo for demonstrations.")
+        raise
+
+
+# =============================================================================
+# DEMO MODE - Synthetic Data Generation
+# =============================================================================
 
 def generate_projects(n: int = 50) -> pd.DataFrame:
     """Generate construction project data."""
@@ -370,14 +445,68 @@ def generate_qa_reviews(n: int = 100, projects_df: pd.DataFrame = None, pages_df
     return pd.DataFrame(reviews)
 
 
+def generate_demo_data(context: AssetExecutionContext) -> dict:
+    """Generate all demo data with deterministic seeding."""
+    context.log.info("Generating demo data with deterministic seed...")
+    
+    # Reset seed for reproducibility
+    random.seed(SEED)
+    Faker.seed(SEED)
+    
+    context.log.info("Generating project data...")
+    projects_df = generate_projects(50)
+    
+    context.log.info("Generating blueprint page data...")
+    pages_df = generate_blueprint_pages(400, project_ids=projects_df["project_id"].tolist())
+    
+    context.log.info("Generating cost library data...")
+    cost_library_df = generate_cost_library(80)
+    
+    context.log.info("Generating takeoff item data...")
+    takeoffs_df = generate_takeoff_items(4000, pages_df=pages_df, cost_library_df=cost_library_df)
+    
+    context.log.info("Generating estimate data...")
+    estimates_df = generate_estimates(
+        project_ids=projects_df["project_id"].tolist(),
+        takeoffs_df=takeoffs_df,
+        cost_library_df=cost_library_df
+    )
+    
+    context.log.info("Generating estimate line item data...")
+    line_items_df = generate_estimate_line_items(estimates_df, takeoffs_df, cost_library_df)
+    
+    context.log.info("Generating QA review data...")
+    qa_reviews_df = generate_qa_reviews(100, projects_df=projects_df, pages_df=pages_df, takeoffs_df=takeoffs_df)
+    
+    return {
+        "projects": projects_df,
+        "blueprint_pages": pages_df,
+        "cost_library": cost_library_df,
+        "takeoff_items": takeoffs_df,
+        "estimates": estimates_df,
+        "estimate_line_items": line_items_df,
+        "qa_reviews": qa_reviews_df,
+    }
+
+
+# =============================================================================
+# DAGSTER ASSET
+# =============================================================================
+
 @asset(
     group_name="extract",
     compute_kind="python",
-    description="Generate raw CSV files for Bidi Contracting blueprint takeoff data",
+    description="Generate or fetch data for Bidi Contracting blueprint takeoffs (demo or live mode)",
 )
 def raw_csv_files(context: AssetExecutionContext) -> Output[dict]:
     """
-    Generate deterministic CSV files for the Bidi Contracting dataset.
+    Generate or fetch CSV files for the Bidi Contracting dataset.
+    
+    Modes:
+    - DEMO (default): Generate deterministic fake data for demonstrations
+    - LIVE: Fetch real data from Bidi's AI extraction API (pending API completion)
+    
+    Set BIDI_DATA_MODE environment variable to switch modes.
     
     Creates 7 CSV files:
     - projects.csv (~50 rows) - Construction projects
@@ -391,75 +520,39 @@ def raw_csv_files(context: AssetExecutionContext) -> Output[dict]:
     # Ensure data directory exists
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     
-    context.log.info("Generating project data...")
-    projects_df = generate_projects(50)
-    projects_path = DATA_DIR / "projects.csv"
-    projects_df.to_csv(projects_path, index=False)
-    context.log.info(f"Generated {len(projects_df)} projects")
+    context.log.info(f"Data mode: {DATA_MODE.upper()}")
     
-    context.log.info("Generating blueprint page data...")
-    pages_df = generate_blueprint_pages(400, project_ids=projects_df["project_id"].tolist())
-    pages_path = DATA_DIR / "blueprint_pages.csv"
-    pages_df.to_csv(pages_path, index=False)
-    context.log.info(f"Generated {len(pages_df)} blueprint pages")
+    # Fetch or generate data based on mode
+    if DATA_MODE == "live":
+        context.log.info("🔴 LIVE MODE: Fetching data from Bidi API...")
+        data = fetch_live_data(context)
+    else:
+        context.log.info("🟢 DEMO MODE: Generating synthetic data...")
+        data = generate_demo_data(context)
     
-    context.log.info("Generating cost library data...")
-    cost_library_df = generate_cost_library(80)
-    cost_library_path = DATA_DIR / "cost_library.csv"
-    cost_library_df.to_csv(cost_library_path, index=False)
-    context.log.info(f"Generated {len(cost_library_df)} cost library entries")
+    # Write all DataFrames to CSV
+    file_info = {}
     
-    context.log.info("Generating takeoff item data...")
-    takeoffs_df = generate_takeoff_items(4000, pages_df=pages_df, cost_library_df=cost_library_df)
-    takeoffs_path = DATA_DIR / "takeoff_items.csv"
-    takeoffs_df.to_csv(takeoffs_path, index=False)
-    context.log.info(f"Generated {len(takeoffs_df)} takeoff items")
-    
-    context.log.info("Generating estimate data...")
-    estimates_df = generate_estimates(
-        project_ids=projects_df["project_id"].tolist(),
-        takeoffs_df=takeoffs_df,
-        cost_library_df=cost_library_df
-    )
-    estimates_path = DATA_DIR / "estimates.csv"
-    estimates_df.to_csv(estimates_path, index=False)
-    context.log.info(f"Generated {len(estimates_df)} estimates")
-    
-    context.log.info("Generating estimate line item data...")
-    line_items_df = generate_estimate_line_items(estimates_df, takeoffs_df, cost_library_df)
-    line_items_path = DATA_DIR / "estimate_line_items.csv"
-    line_items_df.to_csv(line_items_path, index=False)
-    context.log.info(f"Generated {len(line_items_df)} estimate line items")
-    
-    context.log.info("Generating QA review data...")
-    qa_reviews_df = generate_qa_reviews(100, projects_df=projects_df, pages_df=pages_df, takeoffs_df=takeoffs_df)
-    qa_reviews_path = DATA_DIR / "qa_reviews.csv"
-    qa_reviews_df.to_csv(qa_reviews_path, index=False)
-    context.log.info(f"Generated {len(qa_reviews_df)} QA reviews")
-    
-    file_info = {
-        "projects": {"path": str(projects_path), "rows": len(projects_df)},
-        "blueprint_pages": {"path": str(pages_path), "rows": len(pages_df)},
-        "cost_library": {"path": str(cost_library_path), "rows": len(cost_library_df)},
-        "takeoff_items": {"path": str(takeoffs_path), "rows": len(takeoffs_df)},
-        "estimates": {"path": str(estimates_path), "rows": len(estimates_df)},
-        "estimate_line_items": {"path": str(line_items_path), "rows": len(line_items_df)},
-        "qa_reviews": {"path": str(qa_reviews_path), "rows": len(qa_reviews_df)},
-    }
+    for table_name, df in data.items():
+        csv_path = DATA_DIR / f"{table_name}.csv"
+        df.to_csv(csv_path, index=False)
+        file_info[table_name] = {"path": str(csv_path), "rows": len(df)}
+        context.log.info(f"Wrote {len(df)} rows to {csv_path}")
     
     total_rows = sum(info["rows"] for info in file_info.values())
     
     return Output(
         value=file_info,
         metadata={
+            "data_mode": MetadataValue.text(DATA_MODE.upper()),
             "total_rows": MetadataValue.int(total_rows),
-            "projects_count": MetadataValue.int(len(projects_df)),
-            "blueprint_pages_count": MetadataValue.int(len(pages_df)),
-            "cost_library_count": MetadataValue.int(len(cost_library_df)),
-            "takeoff_items_count": MetadataValue.int(len(takeoffs_df)),
-            "estimates_count": MetadataValue.int(len(estimates_df)),
-            "estimate_line_items_count": MetadataValue.int(len(line_items_df)),
-            "qa_reviews_count": MetadataValue.int(len(qa_reviews_df)),
+            "projects_count": MetadataValue.int(file_info["projects"]["rows"]),
+            "blueprint_pages_count": MetadataValue.int(file_info["blueprint_pages"]["rows"]),
+            "cost_library_count": MetadataValue.int(file_info["cost_library"]["rows"]),
+            "takeoff_items_count": MetadataValue.int(file_info["takeoff_items"]["rows"]),
+            "estimates_count": MetadataValue.int(file_info["estimates"]["rows"]),
+            "estimate_line_items_count": MetadataValue.int(file_info["estimate_line_items"]["rows"]),
+            "qa_reviews_count": MetadataValue.int(file_info["qa_reviews"]["rows"]),
             "data_directory": MetadataValue.path(str(DATA_DIR)),
         }
     )

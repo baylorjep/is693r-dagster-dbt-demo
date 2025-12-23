@@ -1,6 +1,6 @@
 # Bidi Contracting - Estimation Analytics Report
 
-**Generated:** 2025-12-23 09:22:35
+**Generated:** 2025-12-23 10:24:41
 
 ---
 
@@ -11,8 +11,8 @@
 | Total Projects | 50 |
 | Blueprint Pages Processed | 400 |
 | Takeoff Items Extracted | 4,000 |
-| Total Estimate Value | $684,433,814.96 |
-| Average Estimate | $6,456,922.78 |
+| Total Estimate Value | $682,747,853.49 |
+| Average Estimate | $6,441,017.49 |
 
 ---
 
@@ -34,10 +34,10 @@
 | Metric | Value |
 |--------|-------|
 | Total Estimates | 106 |
-| Sum of Mid Estimates | $684,433,814.96 |
-| Average Mid Estimate | $6,456,922.78 |
-| Median (P50) | $7,227,877.88 |
-| 90th Percentile | $11,385,321.15 |
+| Sum of Mid Estimates | $682,747,853.49 |
+| Average Mid Estimate | $6,441,017.49 |
+| Median (P50) | $7,420,605.45 |
+| 90th Percentile | $12,120,779.72 |
 
 ---
 
@@ -48,8 +48,8 @@
 | Mechanical | M | 84 |
 | Structural | S | 69 |
 | Civil | C | 64 |
-| Electrical | E | 63 |
 | Plumbing | P | 63 |
+| Electrical | E | 63 |
 | Architectural | A | 57 |
 
 ---
@@ -76,8 +76,8 @@
 | Metric | Value |
 |--------|-------|
 | Total QA Issues | 100 |
-| Open Issues | 27 |
-| Critical Issues | 24 |
+| Open Issues | 29 |
+| Critical Issues | 21 |
 | Issues per Project | 2.00 |
 
 ---
@@ -86,8 +86,8 @@
 
 | Status | Projects |
 |--------|----------|
-| Ready | 25 |
-| Needs Review | 17 |
+| Ready | 26 |
+| Needs Review | 16 |
 | No Estimate | 8 |
 
 ---
