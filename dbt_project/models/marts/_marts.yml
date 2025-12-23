@@ -1,0 +1,82 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Customer dimension with lifetime metrics and segments"
+    columns:
+      - name: customer_id
+        description: "Primary key"
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_segment
+        description: "Customer value segment based on lifetime value"
+        data_tests:
+          - accepted_values:
+              values: ['VIP', 'Gold', 'Silver', 'Bronze', 'Prospect']
+      - name: lifetime_value
+        description: "Total payments made by customer"
+
+  - name: dim_vendors
+    description: "Vendor dimension with performance statistics"
+    columns:
+      - name: vendor_id
+        description: "Primary key"
+        data_tests:
+          - unique
+          - not_null
+      - name: partner_level
+        description: "Vendor partnership tier based on revenue"
+        data_tests:
+          - accepted_values:
+              values: ['Platinum Partner', 'Gold Partner', 'Silver Partner', 'Bronze Partner', 'New Vendor']
+      - name: win_rate_pct
+        description: "Percentage of bids that were accepted"
+
+  - name: fct_bids
+    description: "Bid fact table with denormalized context"
+    columns:
+      - name: bid_id
+        description: "Primary key"
+        data_tests:
+          - unique
+          - not_null
+      - name: vendor_id
+        description: "Foreign key to vendors"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_vendors')
+              field: vendor_id
+      - name: customer_id
+        description: "Foreign key to customers"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: bid_amount
+        description: "Bid amount in USD"
+        data_tests:
+          - not_null
+
+  - name: fct_payments
+    description: "Payment fact table with full transaction lineage"
+    columns:
+      - name: payment_id
+        description: "Primary key"
+        data_tests:
+          - unique
+          - not_null
+      - name: bid_id
+        description: "Foreign key to bids"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('fct_bids')
+              field: bid_id
+      - name: payment_amount
+        description: "Payment amount in USD"
+        data_tests:
+          - not_null
+

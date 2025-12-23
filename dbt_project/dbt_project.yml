@@ -1,0 +1,38 @@
+name: 'wedding_marketplace'
+version: '1.0.0'
+config-version: 2
+
+profile: 'wedding_marketplace'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Model configurations
+models:
+  wedding_marketplace:
+    # Staging models - ephemeral or view
+    staging:
+      +materialized: view
+    # Mart models - table for performance
+    marts:
+      +materialized: table
+
+# Snapshot configurations
+snapshots:
+  wedding_marketplace:
+    +target_schema: snapshots
+
+# Test configurations
+tests:
+  wedding_marketplace:
+    +severity: warn
+

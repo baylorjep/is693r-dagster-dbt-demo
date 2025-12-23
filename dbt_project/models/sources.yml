@@ -1,0 +1,168 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw data loaded from CSV files into DuckDB"
+    schema: raw
+    tables:
+      - name: customers
+        description: "Customer information - people seeking wedding services"
+        columns:
+          - name: customer_id
+            description: "Primary key for customers"
+            data_tests:
+              - unique
+              - not_null
+          - name: first_name
+            description: "Customer first name"
+          - name: last_name
+            description: "Customer last name"
+          - name: email
+            description: "Customer email address"
+            data_tests:
+              - not_null
+          - name: phone
+            description: "Customer phone number"
+          - name: city
+            description: "Customer city"
+          - name: state
+            description: "Customer state (2-letter code)"
+          - name: created_at
+            description: "Timestamp when customer was created"
+
+      - name: vendors
+        description: "Vendor information - service providers"
+        columns:
+          - name: vendor_id
+            description: "Primary key for vendors"
+            data_tests:
+              - unique
+              - not_null
+          - name: business_name
+            description: "Vendor business name"
+          - name: contact_name
+            description: "Primary contact name"
+          - name: email
+            description: "Vendor email address"
+          - name: phone
+            description: "Vendor phone number"
+          - name: category
+            description: "Service category"
+            data_tests:
+              - accepted_values:
+                  values: ['Photography', 'Videography', 'Catering', 'Florist', 
+                          'DJ/Music', 'Wedding Planner', 'Cake/Bakery', 
+                          'Hair & Makeup', 'Officiant', 'Transportation']
+          - name: city
+            description: "Vendor city"
+          - name: state
+            description: "Vendor state"
+          - name: rating
+            description: "Average vendor rating (1-5)"
+          - name: hourly_rate
+            description: "Vendor hourly rate in USD"
+          - name: years_experience
+            description: "Years of experience"
+          - name: created_at
+            description: "Timestamp when vendor was created"
+
+      - name: requests
+        description: "Service requests from customers"
+        columns:
+          - name: request_id
+            description: "Primary key for requests"
+            data_tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: "Foreign key to customers"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'customers')
+                  field: customer_id
+          - name: category
+            description: "Service category requested"
+          - name: event_date
+            description: "Date of the event"
+          - name: event_city
+            description: "City where event will be held"
+          - name: event_state
+            description: "State where event will be held"
+          - name: budget
+            description: "Customer budget for the service"
+          - name: guest_count
+            description: "Expected number of guests"
+          - name: status
+            description: "Request status"
+            data_tests:
+              - accepted_values:
+                  values: ['open', 'in_progress', 'completed', 'cancelled']
+          - name: description
+            description: "Request description"
+          - name: created_at
+            description: "Timestamp when request was created"
+
+      - name: bids
+        description: "Vendor bids on customer requests"
+        columns:
+          - name: bid_id
+            description: "Primary key for bids"
+            data_tests:
+              - unique
+              - not_null
+          - name: request_id
+            description: "Foreign key to requests"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'requests')
+                  field: request_id
+          - name: vendor_id
+            description: "Foreign key to vendors"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'vendors')
+                  field: vendor_id
+          - name: bid_amount
+            description: "Bid amount in USD"
+          - name: estimated_hours
+            description: "Estimated hours for the service"
+          - name: message
+            description: "Vendor message to customer"
+          - name: status
+            description: "Bid status"
+            data_tests:
+              - accepted_values:
+                  values: ['pending', 'accepted', 'rejected', 'withdrawn']
+          - name: created_at
+            description: "Timestamp when bid was created"
+
+      - name: payments
+        description: "Payments for accepted bids"
+        columns:
+          - name: payment_id
+            description: "Primary key for payments"
+            data_tests:
+              - unique
+              - not_null
+          - name: bid_id
+            description: "Foreign key to bids"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'bids')
+                  field: bid_id
+          - name: amount
+            description: "Payment amount in USD"
+          - name: payment_method
+            description: "Payment method used"
+            data_tests:
+              - accepted_values:
+                  values: ['credit_card', 'bank_transfer', 'paypal', 'check']
+          - name: payment_date
+            description: "Date payment was made"
+          - name: processed_at
+            description: "Timestamp when payment was processed"
+

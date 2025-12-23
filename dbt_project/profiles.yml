@@ -1,0 +1,12 @@
+wedding_marketplace:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'warehouse/analytics.duckdb') }}"
+      threads: 4
+      # DuckDB specific settings
+      extensions:
+        - httpfs
+        - parquet
+
