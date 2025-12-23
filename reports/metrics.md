@@ -1,6 +1,6 @@
 # Wedding Marketplace Analytics Report
 
-**Generated:** 2025-12-22 21:54:08
+**Generated:** 2025-12-22 22:31:45
 
 ---
 
@@ -44,10 +44,10 @@
 | Category | Bids | Accepted | Avg Bid | Conversion |
 |----------|------|----------|---------|------------|
 | Wedding Planner | 48 | 23 | $5,148.32 | 47.9% |
-| Hair & Makeup | 44 | 14 | $4,864.58 | 31.8% |
 | Videography | 44 | 13 | $4,956.37 | 29.5% |
-| Transportation | 41 | 16 | $5,370.08 | 39.0% |
+| Hair & Makeup | 44 | 14 | $4,864.58 | 31.8% |
 | Cake/Bakery | 41 | 15 | $5,888.19 | 36.6% |
+| Transportation | 41 | 16 | $5,370.08 | 39.0% |
 | Photography | 40 | 20 | $4,783.28 | 50.0% |
 | Catering | 38 | 17 | $4,827.39 | 44.7% |
 | Officiant | 37 | 17 | $5,228.79 | 45.9% |

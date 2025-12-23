@@ -37,7 +37,7 @@ $(VENV)/bin/activate:
 	$(PIP) install --upgrade pip
 	$(PIP) install -e .
 	@echo "$(CYAN)Installing dbt packages...$(NC)"
-	cd dbt_project && $(DBT) deps || true
+	DBT_DUCKDB_PATH=warehouse/analytics.duckdb $(DBT) deps --project-dir dbt_project --profiles-dir dbt_project || true
 	@touch $(VENV)/bin/activate
 
 install: setup
@@ -49,19 +49,19 @@ demo: setup
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Step 1: Extracting raw data (generating CSVs)...$(NC)"
-	$(DAGSTER) asset materialize --select 'raw_csv_files' -m dagster_project.defs 2>&1 | grep -E "(Materialized|INFO|ERROR)" || true
+	$(DAGSTER) asset materialize --select 'raw_csv_files' -m dagster_project.defs
 	@echo ""
 	@echo "$(YELLOW)Step 2: Loading data into DuckDB...$(NC)"
-	$(DAGSTER) asset materialize --select 'duckdb_raw_tables' -m dagster_project.defs 2>&1 | grep -E "(Materialized|INFO|ERROR)" || true
+	$(DAGSTER) asset materialize --select 'duckdb_raw_tables' -m dagster_project.defs
 	@echo ""
 	@echo "$(YELLOW)Step 3: Running dbt transformations...$(NC)"
-	DBT_DUCKDB_PATH=warehouse/analytics.duckdb $(DBT) build --quiet --project-dir dbt_project --profiles-dir dbt_project
+	DBT_DUCKDB_PATH=warehouse/analytics.duckdb $(DBT) build --project-dir dbt_project --profiles-dir dbt_project
 	@echo ""
 	@echo "$(YELLOW)Step 4: Running data quality checks...$(NC)"
-	$(DAGSTER) asset materialize --select 'data_quality_checks' -m dagster_project.defs 2>&1 | grep -E "(Materialized|INFO|ERROR)" || true
+	$(DAGSTER) asset materialize --select 'data_quality_checks' -m dagster_project.defs
 	@echo ""
 	@echo "$(YELLOW)Step 5: Generating metrics report...$(NC)"
-	$(DAGSTER) asset materialize --select 'metrics_report' -m dagster_project.defs 2>&1 | grep -E "(Materialized|INFO|ERROR)" || true
+	$(DAGSTER) asset materialize --select 'metrics_report' -m dagster_project.defs
 	@echo ""
 	@echo "$(GREEN)✓ Pipeline complete!$(NC)"
 	@echo ""
