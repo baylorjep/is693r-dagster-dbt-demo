@@ -1,8 +1,8 @@
-name: 'wedding_marketplace'
+name: 'bidi_contracting'
 version: '1.0.0'
 config-version: 2
 
-profile: 'wedding_marketplace'
+profile: 'bidi_contracting'
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]
@@ -18,7 +18,7 @@ clean-targets:
 
 # Model configurations
 models:
-  wedding_marketplace:
+  bidi_contracting:
     # Staging models - ephemeral or view
     staging:
       +materialized: view
@@ -28,11 +28,10 @@ models:
 
 # Snapshot configurations
 snapshots:
-  wedding_marketplace:
+  bidi_contracting:
     +target_schema: snapshots
 
 # Test configurations
 tests:
-  wedding_marketplace:
+  bidi_contracting:
     +severity: warn
-

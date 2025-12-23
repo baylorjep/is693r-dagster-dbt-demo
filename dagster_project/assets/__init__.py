@@ -1,4 +1,4 @@
-"""Dagster assets for the wedding marketplace pipeline."""
+"""Dagster assets for the Bidi Contracting estimation pipeline."""
 
 from dagster_project.assets.extract import raw_csv_files
 from dagster_project.assets.load import duckdb_raw_tables
@@ -14,4 +14,3 @@ __all__ = [
     "data_quality_checks",
     "metrics_report",
 ]
-

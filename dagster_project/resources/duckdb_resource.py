@@ -1,5 +1,5 @@
 """
-DuckDB resource for the wedding marketplace pipeline.
+DuckDB resource for the Bidi Contracting estimation pipeline.
 
 This resource provides a connection to the local DuckDB warehouse
 that is shared across assets for data loading and querying.
@@ -41,7 +41,7 @@ class DuckDBResource(ConfigurableResource):
         
         Usage:
             with duckdb_resource.get_connection() as conn:
-                result = conn.execute("SELECT * FROM customers").fetchall()
+                result = conn.execute("SELECT * FROM projects").fetchall()
         """
         conn = duckdb.connect(self.database_path)
         try:
@@ -80,4 +80,3 @@ class DuckDBResource(ConfigurableResource):
 
 # Create a default instance for use in Dagster definitions
 duckdb_resource = DuckDBResource(database_path=str(DEFAULT_DB_PATH))
-

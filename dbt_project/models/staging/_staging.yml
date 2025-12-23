@@ -1,73 +1,138 @@
 version: 2
 
 models:
-  - name: stg_customers
-    description: "Staged customer data with standardized columns"
+  - name: stg_projects
+    description: "Staged project data with standardized columns"
     columns:
-      - name: customer_id
+      - name: project_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: full_name
-        description: "Concatenated first and last name"
-      - name: email
-        description: "Lowercase email address"
+      - name: client_name
+        description: "Client company name"
+      - name: project_type
+        description: "Type of construction project"
 
-  - name: stg_vendors
-    description: "Staged vendor data with standardized columns"
+  - name: stg_blueprint_pages
+    description: "Staged blueprint page data with standardized columns"
     columns:
-      - name: vendor_id
+      - name: page_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: vendor_tier
-        description: "Vendor tier based on rating"
+      - name: project_id
+        description: "Foreign key to projects"
+        data_tests:
+          - not_null
+      - name: discipline
+        description: "Engineering discipline code"
         data_tests:
           - accepted_values:
-              values: ['Premium', 'Standard', 'Basic']
+              values: ['A', 'S', 'C', 'M', 'E', 'P']
 
-  - name: stg_requests
-    description: "Staged request data with standardized columns"
+  - name: stg_cost_library
+    description: "Staged cost library data with standardized columns"
     columns:
-      - name: request_id
+      - name: cost_code
+        description: "Primary key - CSI cost code"
+        data_tests:
+          - unique
+          - not_null
+      - name: unit_cost_mid
+        description: "Mid-range unit cost"
+        data_tests:
+          - not_null
+
+  - name: stg_takeoff_items
+    description: "Staged takeoff item data with standardized columns"
+    columns:
+      - name: takeoff_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: customer_id
-        description: "Foreign key to customers"
+      - name: project_id
+        description: "Foreign key to projects"
         data_tests:
           - not_null
+      - name: page_id
+        description: "Foreign key to blueprint pages"
+        data_tests:
+          - not_null
+      - name: cost_code
+        description: "Foreign key to cost library"
+        data_tests:
+          - not_null
+      - name: confidence
+        description: "AI confidence score (0-1)"
+        data_tests:
+          - not_null
+      - name: extraction_method
+        description: "Method used for extraction"
+        data_tests:
+          - accepted_values:
+              values: ['ai', 'manual', 'hybrid']
 
-  - name: stg_bids
-    description: "Staged bid data with standardized columns"
+  - name: stg_estimates
+    description: "Staged estimate data with standardized columns"
     columns:
-      - name: bid_id
+      - name: estimate_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: request_id
-        description: "Foreign key to requests"
+      - name: project_id
+        description: "Foreign key to projects"
         data_tests:
           - not_null
-      - name: vendor_id
-        description: "Foreign key to vendors"
+      - name: estimate_total_mid
+        description: "Mid-range estimate total"
         data_tests:
           - not_null
+      - name: estimation_method
+        description: "Method used for estimation"
+        data_tests:
+          - accepted_values:
+              values: ['ai', 'manual', 'hybrid']
 
-  - name: stg_payments
-    description: "Staged payment data with standardized columns"
+  - name: stg_estimate_line_items
+    description: "Staged estimate line item data with standardized columns"
     columns:
-      - name: payment_id
+      - name: line_item_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: bid_id
-        description: "Foreign key to bids"
+      - name: estimate_id
+        description: "Foreign key to estimates"
+        data_tests:
+          - not_null
+      - name: cost_code
+        description: "Cost code for this line item"
         data_tests:
           - not_null
 
+  - name: stg_qa_reviews
+    description: "Staged QA review data with standardized columns"
+    columns:
+      - name: review_id
+        description: "Primary key"
+        data_tests:
+          - unique
+          - not_null
+      - name: project_id
+        description: "Foreign key to projects"
+        data_tests:
+          - not_null
+      - name: issue_type
+        description: "Type of QA issue"
+        data_tests:
+          - accepted_values:
+              values: ['missing_item', 'quantity_mismatch', 'wrong_uom', 'duplicate', 'low_confidence', 'cost_outlier']
+      - name: severity
+        description: "Issue severity level"
+        data_tests:
+          - accepted_values:
+              values: ['low', 'medium', 'high', 'critical']

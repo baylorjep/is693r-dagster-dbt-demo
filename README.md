@@ -1,11 +1,13 @@
-# IS 693R Dagster + dbt Demo: Wedding Marketplace Analytics Pipeline
+# Bidi Contracting - Blueprint Takeoff & Estimation Pipeline
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Dagster](https://img.shields.io/badge/dagster-1.6+-purple.svg)](https://dagster.io/)
 [![dbt](https://img.shields.io/badge/dbt-1.7+-orange.svg)](https://www.getdbt.com/)
 [![DuckDB](https://img.shields.io/badge/duckdb-0.9+-yellow.svg)](https://duckdb.org/)
 
-A modern ELT analytics pipeline demonstrating applied learning from:
+A modern ELT analytics pipeline demonstrating AI-powered blueprint takeoffs and cost estimation for construction projects.
+
+Built with applied learning from:
 - **Microsoft DP-203** (Data Engineering on Azure concepts)
 - **Dagster Essentials** (Orchestration)
 - **Dagster + dbt** (Orchestration + Transformations)
@@ -14,11 +16,25 @@ This project is a portfolio artifact for the BYU MISM IS 693R Independent Study.
 
 ---
 
-## 📐 Architecture
+## About Bidi Contracting
+
+Bidi Contracting is an AI automation platform for construction blueprint takeoffs and cost estimation. The platform:
+
+1. **Ingests plan sets** (blueprint pages) for construction projects
+2. **Performs AI-powered takeoffs** - extracting quantities from blueprints with confidence scores
+3. **Generates cost estimates** - rolling up takeoffs against a cost library (low/mid/high ranges)
+4. **Enables QA review** - flagging low-confidence extractions and cost outliers
+5. **Produces analytics** - monitoring estimation accuracy, confidence distributions, and cost drivers
+
+This is an **internal product workflow** (not a marketplace) - the pipeline supports Bidi's core estimation product.
+
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Wedding Marketplace ELT Pipeline                      │
+│                   Bidi Contracting Estimation Pipeline                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                               │
 │   ┌──────────────┐     ┌──────────────┐     ┌──────────────────────────┐    │
@@ -43,7 +59,7 @@ This project is a portfolio artifact for the BYU MISM IS 693R Independent Study.
 │   ┌──────────────────────────────────────────────────────────────────┐      │
 │   │                           OUTPUTS                                 │      │
 │   │   • warehouse/analytics.duckdb (queryable data warehouse)        │      │
-│   │   • reports/metrics.md (executive summary)                       │      │
+│   │   • reports/metrics.md (estimation analytics)                    │      │
 │   │   • Dagster UI (asset graph + materialization history)           │      │
 │   │   • dbt Docs (data lineage + documentation)                      │      │
 │   └──────────────────────────────────────────────────────────────────┘      │
@@ -55,35 +71,43 @@ This project is a portfolio artifact for the BYU MISM IS 693R Independent Study.
 
 ```
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│   dim_customers │       │   dim_vendors   │       │ vendors_snapshot│
-│   ─────────────│        │   ─────────────│        │   (SCD Type 2)  │
-│   customer_id  │        │   vendor_id    │        │   ─────────────│
-│   full_name    │        │   business_name│        │   vendor_id    │
-│   lifetime_value│       │   total_revenue│        │   rating       │
-│   customer_segment│     │   win_rate_pct │        │   valid_from   │
-└────────┬────────┘       └────────┬────────┘       │   valid_to     │
-         │                         │                 └─────────────────┘
-         │                         │
-         ▼                         ▼
-┌─────────────────────────────────────────────────────┐
-│                     fct_bids                         │
-│   ─────────────────────────────────────────────────│
-│   bid_id | request_id | vendor_id | customer_id    │
-│   bid_amount | bid_status | category | event_date  │
-└────────────────────────┬────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────┐
-│                   fct_payments                       │
-│   ─────────────────────────────────────────────────│
-│   payment_id | bid_id | payment_amount              │
-│   vendor_name | customer_name | service_category    │
-└─────────────────────────────────────────────────────┘
+│   stg_projects  │       │stg_blueprint_   │       │ stg_cost_library│
+│   ─────────────│        │    pages        │       │   ─────────────│
+│   project_id   │◄───────│   ─────────────│        │   cost_code    │
+│   client_name  │        │   page_id      │        │   unit_cost_mid│
+│   project_type │        │   discipline   │        │   item_type    │
+└────────┬────────┘       └────────┬────────┘       └────────┬────────┘
+         │                         │                          │
+         │                         ▼                          │
+         │              ┌─────────────────────────────────────┼──────────┐
+         │              │            stg_takeoff_items        │          │
+         │              │   ─────────────────────────────────│          │
+         └─────────────▶│   takeoff_id | page_id | cost_code │◄─────────┘
+                        │   quantity | confidence | method   │
+                        └────────────────────────────────────┘
+                                         │
+                                         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MART MODELS                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   fct_takeoffs          fct_estimates         mart_estimation_dashboard     │
+│   ─────────────         ─────────────         ─────────────────────────     │
+│   Grain: takeoff        Grain: estimate       Grain: project                │
+│   + project/page        + project context     + headline metrics            │
+│   + cost context        + takeoff stats       + readiness status            │
+│                                                                              │
+│   mart_estimate_cost_breakdown       mart_takeoff_quality_monitoring        │
+│   ────────────────────────────       ──────────────────────────────         │
+│   Grain: estimate + cost_code        Grain: project + discipline            │
+│   Cost driver analysis               Confidence & QA metrics                │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -118,7 +142,7 @@ make dagster        # Launch Dagster UI at http://localhost:3000
 
 ---
 
-## 🎬 Demo Script (5-10 minutes)
+## Demo Script (5-10 minutes)
 
 Use this script for screen recording your demo:
 
@@ -159,9 +183,9 @@ make dbt-docs
 
 **What to show in dbt Docs:**
 1. **Lineage Graph** → Visualize source → staging → marts flow
-2. Click on `fct_payments` → Show column documentation
-3. Click on `dim_customers` → Show tests and descriptions
-4. Show the `vendors_snapshot` → Explain SCD Type 2
+2. Click on `fct_takeoffs` → Show column documentation
+3. Click on `mart_estimation_dashboard` → Show tests and descriptions
+4. Show the `cost_library_snapshot` → Explain SCD Type 2 for pricing history
 
 ### Minute 6-8: Explore Outputs
 
@@ -173,22 +197,21 @@ cat reports/metrics.md
 .venv/bin/python -c "
 import duckdb
 conn = duckdb.connect('warehouse/analytics.duckdb')
-print('\\n=== Top 5 Vendors by Revenue ===')
+print('\\n=== Top Cost Codes by Extended Cost ===')
 print(conn.execute('''
-    SELECT vendor_name, total_revenue 
-    FROM main.dim_vendors 
-    ORDER BY total_revenue DESC 
+    SELECT cost_code, division_name, SUM(extended_cost_mid) as total_cost
+    FROM main.fct_takeoffs 
+    GROUP BY cost_code, division_name
+    ORDER BY total_cost DESC 
     LIMIT 5
 ''').fetchdf())
-print('\\n=== Bid Conversion by Category ===')
+print('\\n=== Project Readiness Summary ===')
 print(conn.execute('''
-    SELECT category, 
-           COUNT(*) as total_bids,
-           SUM(CASE WHEN is_accepted THEN 1 ELSE 0 END) as accepted,
-           ROUND(AVG(CASE WHEN is_accepted THEN 1.0 ELSE 0.0 END) * 100, 1) as conversion_pct
-    FROM main.fct_bids
-    GROUP BY category
-    ORDER BY conversion_pct DESC
+    SELECT readiness_status, COUNT(*) as projects, 
+           ROUND(AVG(avg_confidence), 3) as avg_confidence
+    FROM main.mart_estimation_dashboard
+    GROUP BY readiness_status
+    ORDER BY projects DESC
 ''').fetchdf())
 "
 ```
@@ -197,15 +220,15 @@ print(conn.execute('''
 
 **Files to highlight:**
 
-1. **`dagster_project/assets/extract.py`** - Show data generation with Faker
+1. **`dagster_project/assets/extract.py`** - Show data generation with CSI cost codes
 2. **`dagster_project/assets/dbt_assets.py`** - Show dagster-dbt integration
-3. **`dbt_project/models/marts/fct_payments.sql`** - Show star schema design
+3. **`dbt_project/models/marts/fct_takeoffs.sql`** - Show takeoff fact table design
 4. **`dbt_project/models/sources.yml`** - Show dbt tests configuration
-5. **`dbt_project/snapshots/vendors_snapshot.sql`** - Show SCD Type 2
+5. **`dbt_project/snapshots/cost_library_snapshot.sql`** - Show SCD Type 2
 
 ---
 
-## 📊 Project Structure
+## Project Structure
 
 ```
 is693r-dagster-dbt-demo/
@@ -214,11 +237,13 @@ is693r-dagster-dbt-demo/
 ├── Makefile                     # CLI commands
 ├── data/
 │   └── raw/                     # Generated CSVs (gitignored)
-│       ├── customers.csv        # ~300 rows
-│       ├── vendors.csv          # ~100 rows
-│       ├── requests.csv         # ~500 rows
-│       ├── bids.csv             # ~400 rows
-│       └── payments.csv         # ~200 rows
+│       ├── projects.csv         # ~50 rows
+│       ├── blueprint_pages.csv  # ~400 rows
+│       ├── cost_library.csv     # ~80 rows
+│       ├── takeoff_items.csv    # ~4000 rows
+│       ├── estimates.csv        # ~80 rows
+│       ├── estimate_line_items.csv # ~600 rows
+│       └── qa_reviews.csv       # ~100 rows
 ├── warehouse/
 │   └── analytics.duckdb         # DuckDB warehouse (gitignored)
 ├── reports/
@@ -240,17 +265,18 @@ is693r-dagster-dbt-demo/
     ├── profiles.yml
     ├── models/
     │   ├── sources.yml          # Source definitions + tests
-    │   ├── staging/             # 5 staging models (views)
-    │   └── marts/               # 4 mart models (tables)
+    │   ├── staging/             # 7 staging models (views)
+    │   └── marts/               # 5 mart models (tables)
     ├── tests/
-    │   └── assert_positive_bid_amounts.sql
+    │   ├── assert_positive_quantities.sql
+    │   └── assert_valid_confidence.sql
     └── snapshots/
-        └── vendors_snapshot.sql # SCD Type 2
+        └── cost_library_snapshot.sql # SCD Type 2
 ```
 
 ---
 
-## 🎓 Key Takeaways
+## Key Takeaways
 
 ### Orchestration Concepts (Dagster Essentials)
 
@@ -259,7 +285,7 @@ is693r-dagster-dbt-demo/
 | **Software-Defined Assets** | Each pipeline step is an asset with typed inputs/outputs |
 | **Asset Materialization** | Dagster tracks when assets were last computed |
 | **Resources** | DuckDB connection shared across assets via `DuckDBResource` |
-| **Asset Checks** | Custom validation (`check_positive_payment_amounts`) |
+| **Asset Checks** | Custom validation (`check_valid_quantities`, `check_confidence_distribution`) |
 | **Metadata** | Rich metadata attached to each materialization |
 
 ### ELT + Modeling (Dagster + dbt)
@@ -268,18 +294,20 @@ is693r-dagster-dbt-demo/
 |---------|---------------|
 | **dagster-dbt Integration** | dbt models automatically become Dagster assets |
 | **Staging Layer** | Clean, typed views over raw data |
-| **Dimensional Modeling** | Star schema with `dim_` and `fct_` prefixes |
-| **dbt Tests** | 20+ tests (unique, not_null, relationships, accepted_values) |
-| **dbt Snapshots** | SCD Type 2 for vendor profile history |
+| **Fact Tables** | `fct_takeoffs`, `fct_estimates` at appropriate grains |
+| **Analytics Marts** | `mart_estimation_dashboard`, `mart_takeoff_quality_monitoring` |
+| **dbt Tests** | 50+ tests (unique, not_null, relationships, accepted_values, custom) |
+| **dbt Snapshots** | SCD Type 2 for cost library pricing history |
 
 ### Data Quality
 
 | Concept | Implementation |
 |---------|---------------|
 | **Schema Tests** | dbt tests on sources and models |
-| **Custom Tests** | `assert_positive_bid_amounts.sql` |
-| **Asset Checks** | Dagster-native `@asset_check` for payment validation |
+| **Custom Tests** | `assert_positive_quantities.sql`, `assert_valid_confidence.sql` |
+| **Asset Checks** | Dagster-native checks for quantities and confidence distribution |
 | **Quality Gates** | Quality checks run before report generation |
+| **Confidence Monitoring** | Track % of low-confidence AI extractions |
 
 ### DP-203 Aligned Concepts
 
@@ -293,9 +321,9 @@ is693r-dagster-dbt-demo/
 | **SCD Type 2** | dbt snapshots | Delta Lake merge operations |
 | **Partitioning** | Not implemented locally | Date-based partitions in Synapse |
 
-#### Scaling Considerations
+#### How This Would Translate to Azure
 
-This local demo uses DuckDB for simplicity, but the patterns translate directly to cloud:
+This local demo uses DuckDB for simplicity, but the patterns translate directly to Azure:
 
 ```python
 # Local (this demo)
@@ -308,39 +336,47 @@ duckdb.connect('warehouse/analytics.duckdb')
 # Partitioning example (would add to dbt models)
 {{ config(
     materialized='incremental',
-    partition_by={'field': 'payment_date', 'data_type': 'date'},
-    cluster_by=['category']
+    partition_by={'field': 'bid_date', 'data_type': 'date'},
+    cluster_by=['project_type', 'location_state']
 ) }}
 ```
 
+**Azure architecture for Bidi Contracting at scale:**
+- **Azure Blob Storage** - Store blueprint PDFs and extracted images
+- **Azure AI Document Intelligence** - Replace mock AI extraction with real OCR/ML
+- **Azure Data Factory** - Orchestrate data movement at scale
+- **Azure Synapse Analytics** - Data warehouse with dedicated SQL pools
+- **Azure Purview** - Data governance and lineage
+- **Power BI** - Executive dashboards for estimation metrics
+
 ---
 
-## 📈 Sample Metrics Output
+## Sample Metrics Output
 
 After running `make demo`, check `reports/metrics.md`:
 
 ```markdown
-# Wedding Marketplace Analytics Report
+# Bidi Contracting - Estimation Analytics Report
 
 ## Executive Summary
 | Metric | Value |
 |--------|-------|
-| Total GMV | $XXX,XXX.XX |
-| Total Payments | XXX |
-| Average Payment | $X,XXX.XX |
-| Active Customers | 300 |
-| Active Vendors | 100 |
+| Total Projects | 50 |
+| Blueprint Pages Processed | 400 |
+| Takeoff Items Extracted | 4,000 |
+| Total Estimate Value | $X,XXX,XXX.XX |
 
-## Bid Performance
+## Takeoff Extraction Metrics
 | Metric | Value |
 |--------|-------|
-| Total Bids | 400 |
-| Conversion Rate | ~40% |
+| AI Extracted | 2,800 (70%) |
+| Avg Confidence | 0.82 |
+| Low Confidence Items | 320 (8%) |
 ```
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Adding New Models
 
@@ -355,6 +391,7 @@ Edit `dagster_project/assets/extract.py` to:
 - Change row counts
 - Add new tables
 - Modify data distributions
+- Add new CSI cost codes
 
 ### Running Tests
 
@@ -369,20 +406,20 @@ make dagster
 
 ---
 
-## 📚 Resources
+## Resources
 
 - [Dagster Documentation](https://docs.dagster.io/)
 - [dbt Documentation](https://docs.getdbt.com/)
 - [DuckDB Documentation](https://duckdb.org/docs/)
 - [Microsoft DP-203 Study Guide](https://learn.microsoft.com/en-us/certifications/exams/dp-203)
+- [CSI MasterFormat](https://www.csiresources.org/standards/masterformat) - Construction cost code standard
 
 ---
 
-## 📝 License
+## License
 
 MIT License - feel free to use this as a template for your own projects.
 
 ---
 
 *Built for IS 693R Independent Study at BYU Marriott School of Business*
-

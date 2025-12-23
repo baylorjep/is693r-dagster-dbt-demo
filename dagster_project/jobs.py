@@ -1,5 +1,5 @@
 """
-Dagster jobs for the wedding marketplace pipeline.
+Dagster jobs for the Bidi Contracting estimation pipeline.
 
 Jobs define executable units of work that can be triggered
 manually, on a schedule, or via sensors.
@@ -9,8 +9,8 @@ from dagster import define_asset_job, AssetSelection
 
 
 # Main pipeline job - runs all assets in dependency order
-wedding_marketplace_pipeline = define_asset_job(
-    name="wedding_marketplace_pipeline",
+bidi_contracting_pipeline = define_asset_job(
+    name="bidi_contracting_pipeline",
     description="Complete ELT pipeline: extract → load → transform → quality → publish",
     selection=AssetSelection.all(),
 )
@@ -35,4 +35,3 @@ quality_publish_job = define_asset_job(
     description="Run quality checks and generate metrics report",
     selection=AssetSelection.groups("quality", "publish"),
 )
-

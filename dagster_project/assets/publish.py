@@ -1,7 +1,7 @@
 """
-Publish asset: Generate metrics report.
+Publish asset: Generate metrics report for Bidi Contracting.
 
-This module creates a markdown report with key business metrics
+This module creates a markdown report with key estimation metrics
 computed from the transformed data warehouse.
 """
 
@@ -22,7 +22,7 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
     group_name="publish",
     compute_kind="python",
     deps=[AssetKey(["data_quality_checks"])],
-    description="Generate metrics report from transformed data",
+    description="Generate metrics report from transformed estimation data",
 )
 def metrics_report(
     context: AssetExecutionContext,
@@ -32,12 +32,13 @@ def metrics_report(
     Generate a comprehensive metrics report in Markdown format.
     
     Metrics included:
-    - Total GMV (Gross Merchandise Value)
-    - Average bid amount
-    - Bid conversion rate
-    - Top vendors by revenue
-    - Category breakdown
-    - Customer acquisition trends
+    - Projects processed
+    - Blueprint pages processed
+    - Takeoff items (and % AI vs manual)
+    - Average confidence, % low-confidence
+    - Estimate totals: sum(mid), avg(mid), p50/p90
+    - Top 10 cost codes by total extended cost
+    - QA: open issues count, issue rate per project
     """
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     report_path = REPORTS_DIR / "metrics.md"
@@ -46,90 +47,114 @@ def metrics_report(
     
     with duckdb.get_connection() as conn:
         # Overall summary metrics
-        context.log.info("Computing overall metrics...")
+        context.log.info("Computing project metrics...")
         
-        # Total GMV
-        gmv = conn.execute("""
-            SELECT COALESCE(SUM(payment_amount), 0) FROM fct_payments
-        """).fetchone()[0]
-        metrics["total_gmv"] = float(gmv)
+        # Project count
+        project_count = conn.execute("SELECT COUNT(*) FROM stg_projects").fetchone()[0]
+        metrics["project_count"] = project_count
         
-        # Total payments count
-        payment_count = conn.execute("""
-            SELECT COUNT(*) FROM fct_payments
-        """).fetchone()[0]
-        metrics["payment_count"] = payment_count
+        # Blueprint pages count
+        page_count = conn.execute("SELECT COUNT(*) FROM stg_blueprint_pages").fetchone()[0]
+        metrics["page_count"] = page_count
         
-        # Average payment
-        avg_payment = conn.execute("""
-            SELECT COALESCE(AVG(payment_amount), 0) FROM fct_payments
-        """).fetchone()[0]
-        metrics["avg_payment"] = float(avg_payment)
-        
-        # Bid statistics
-        bid_stats = conn.execute("""
+        # Pages by discipline
+        context.log.info("Computing discipline breakdown...")
+        discipline_stats = conn.execute("""
             SELECT 
-                COUNT(*) as total_bids,
-                AVG(bid_amount) as avg_bid,
-                SUM(CASE WHEN bid_status = 'accepted' THEN 1 ELSE 0 END) as accepted_bids
-            FROM fct_bids
-        """).fetchone()
-        metrics["total_bids"] = bid_stats[0]
-        metrics["avg_bid"] = float(bid_stats[1]) if bid_stats[1] else 0
-        metrics["accepted_bids"] = bid_stats[2]
-        metrics["conversion_rate"] = (bid_stats[2] / bid_stats[0] * 100) if bid_stats[0] > 0 else 0
-        
-        # Customer and vendor counts
-        customer_count = conn.execute("SELECT COUNT(*) FROM dim_customers").fetchone()[0]
-        vendor_count = conn.execute("SELECT COUNT(*) FROM dim_vendors").fetchone()[0]
-        metrics["customer_count"] = customer_count
-        metrics["vendor_count"] = vendor_count
-        
-        # Top 5 vendors by revenue
-        context.log.info("Computing top vendors...")
-        top_vendors = conn.execute("""
-            SELECT 
-                v.business_name,
-                v.category,
-                COUNT(p.payment_id) as total_payments,
-                SUM(p.payment_amount) as total_revenue
-            FROM fct_payments p
-            JOIN fct_bids b ON p.bid_id = b.bid_id
-            JOIN dim_vendors v ON b.vendor_id = v.vendor_id
-            GROUP BY v.vendor_id, v.business_name, v.category
-            ORDER BY total_revenue DESC
-            LIMIT 5
+                discipline,
+                discipline_name,
+                COUNT(*) as page_count
+            FROM stg_blueprint_pages
+            GROUP BY discipline, discipline_name
+            ORDER BY page_count DESC
         """).fetchall()
         
-        # Category breakdown
-        context.log.info("Computing category breakdown...")
-        category_stats = conn.execute("""
+        # Takeoff statistics
+        context.log.info("Computing takeoff metrics...")
+        takeoff_stats = conn.execute("""
             SELECT 
-                b.category,
-                COUNT(*) as bid_count,
-                SUM(CASE WHEN b.bid_status = 'accepted' THEN 1 ELSE 0 END) as accepted,
-                AVG(b.bid_amount) as avg_bid
-            FROM fct_bids b
-            GROUP BY b.category
-            ORDER BY bid_count DESC
+                COUNT(*) as total_takeoffs,
+                SUM(CASE WHEN extraction_method = 'ai' THEN 1 ELSE 0 END) as ai_takeoffs,
+                SUM(CASE WHEN extraction_method = 'manual' THEN 1 ELSE 0 END) as manual_takeoffs,
+                SUM(CASE WHEN extraction_method = 'hybrid' THEN 1 ELSE 0 END) as hybrid_takeoffs,
+                AVG(confidence) as avg_confidence,
+                SUM(CASE WHEN confidence < 0.6 THEN 1 ELSE 0 END) as low_confidence_count
+            FROM fct_takeoffs
+        """).fetchone()
+        
+        metrics["total_takeoffs"] = takeoff_stats[0]
+        metrics["ai_takeoffs"] = takeoff_stats[1]
+        metrics["manual_takeoffs"] = takeoff_stats[2]
+        metrics["hybrid_takeoffs"] = takeoff_stats[3]
+        metrics["avg_confidence"] = float(takeoff_stats[4]) if takeoff_stats[4] else 0
+        metrics["low_confidence_count"] = takeoff_stats[5]
+        metrics["pct_ai"] = (takeoff_stats[1] / takeoff_stats[0] * 100) if takeoff_stats[0] > 0 else 0
+        metrics["pct_low_confidence"] = (takeoff_stats[5] / takeoff_stats[0] * 100) if takeoff_stats[0] > 0 else 0
+        
+        # Estimate statistics
+        context.log.info("Computing estimate metrics...")
+        estimate_stats = conn.execute("""
+            SELECT 
+                COUNT(*) as total_estimates,
+                SUM(estimate_total_mid) as sum_mid,
+                AVG(estimate_total_mid) as avg_mid,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY estimate_total_mid) as p50_mid,
+                PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY estimate_total_mid) as p90_mid
+            FROM fct_estimates
+        """).fetchone()
+        
+        metrics["total_estimates"] = estimate_stats[0]
+        metrics["sum_estimate_mid"] = float(estimate_stats[1]) if estimate_stats[1] else 0
+        metrics["avg_estimate_mid"] = float(estimate_stats[2]) if estimate_stats[2] else 0
+        metrics["p50_estimate_mid"] = float(estimate_stats[3]) if estimate_stats[3] else 0
+        metrics["p90_estimate_mid"] = float(estimate_stats[4]) if estimate_stats[4] else 0
+        
+        # Top 10 cost codes by extended cost
+        context.log.info("Computing top cost codes...")
+        top_cost_codes = conn.execute("""
+            SELECT 
+                cost_code,
+                division_name,
+                item_type,
+                SUM(extended_cost_mid) as total_extended_cost,
+                COUNT(*) as takeoff_count
+            FROM fct_takeoffs
+            GROUP BY cost_code, division_name, item_type
+            ORDER BY total_extended_cost DESC
+            LIMIT 10
         """).fetchall()
         
-        # Request status breakdown
-        context.log.info("Computing request statistics...")
-        request_stats = conn.execute("""
+        # QA statistics
+        context.log.info("Computing QA metrics...")
+        qa_stats = conn.execute("""
             SELECT 
-                COUNT(*) as total_requests,
-                SUM(CASE WHEN request_status = 'completed' THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN request_status = 'open' THEN 1 ELSE 0 END) as open_requests,
-                AVG(budget) as avg_budget
-            FROM stg_requests
+                COUNT(*) as total_issues,
+                SUM(CASE WHEN NOT resolved THEN 1 ELSE 0 END) as open_issues,
+                SUM(CASE WHEN is_critical THEN 1 ELSE 0 END) as critical_issues
+            FROM stg_qa_reviews
         """).fetchone()
+        
+        metrics["total_qa_issues"] = qa_stats[0]
+        metrics["open_qa_issues"] = qa_stats[1]
+        metrics["critical_qa_issues"] = qa_stats[2]
+        metrics["issue_rate"] = (qa_stats[0] / project_count) if project_count > 0 else 0
+        
+        # Project readiness breakdown
+        context.log.info("Computing project readiness...")
+        readiness_stats = conn.execute("""
+            SELECT 
+                readiness_status,
+                COUNT(*) as project_count
+            FROM mart_estimation_dashboard
+            GROUP BY readiness_status
+            ORDER BY project_count DESC
+        """).fetchall()
     
     # Generate report
     context.log.info("Generating report...")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    report = f"""# Wedding Marketplace Analytics Report
+    report = f"""# Bidi Contracting - Estimation Analytics Report
 
 **Generated:** {timestamp}
 
@@ -139,59 +164,84 @@ def metrics_report(
 
 | Metric | Value |
 |--------|-------|
-| Total GMV | ${metrics['total_gmv']:,.2f} |
-| Total Payments | {metrics['payment_count']:,} |
-| Average Payment | ${metrics['avg_payment']:,.2f} |
-| Active Customers | {metrics['customer_count']:,} |
-| Active Vendors | {metrics['vendor_count']:,} |
+| Total Projects | {metrics['project_count']:,} |
+| Blueprint Pages Processed | {metrics['page_count']:,} |
+| Takeoff Items Extracted | {metrics['total_takeoffs']:,} |
+| Total Estimate Value | ${metrics['sum_estimate_mid']:,.2f} |
+| Average Estimate | ${metrics['avg_estimate_mid']:,.2f} |
 
 ---
 
-## Bid Performance
+## Takeoff Extraction Metrics
 
 | Metric | Value |
 |--------|-------|
-| Total Bids | {metrics['total_bids']:,} |
-| Accepted Bids | {metrics['accepted_bids']:,} |
-| Average Bid Amount | ${metrics['avg_bid']:,.2f} |
-| **Conversion Rate** | **{metrics['conversion_rate']:.1f}%** |
+| Total Takeoff Items | {metrics['total_takeoffs']:,} |
+| AI Extracted | {metrics['ai_takeoffs']:,} ({metrics['pct_ai']:.1f}%) |
+| Manual Entry | {metrics['manual_takeoffs']:,} |
+| Hybrid (AI + Review) | {metrics['hybrid_takeoffs']:,} |
+| **Avg Confidence** | **{metrics['avg_confidence']:.3f}** |
+| Low Confidence Items | {metrics['low_confidence_count']:,} ({metrics['pct_low_confidence']:.1f}%) |
 
 ---
 
-## Top 5 Vendors by Revenue
+## Estimate Distribution
 
-| Rank | Vendor | Category | Payments | Revenue |
-|------|--------|----------|----------|---------|
+| Metric | Value |
+|--------|-------|
+| Total Estimates | {metrics['total_estimates']:,} |
+| Sum of Mid Estimates | ${metrics['sum_estimate_mid']:,.2f} |
+| Average Mid Estimate | ${metrics['avg_estimate_mid']:,.2f} |
+| Median (P50) | ${metrics['p50_estimate_mid']:,.2f} |
+| 90th Percentile | ${metrics['p90_estimate_mid']:,.2f} |
+
+---
+
+## Blueprint Pages by Discipline
+
+| Discipline | Code | Pages |
+|------------|------|-------|
 """
     
-    for i, vendor in enumerate(top_vendors, 1):
-        report += f"| {i} | {vendor[0]} | {vendor[1]} | {vendor[2]} | ${vendor[3]:,.2f} |\n"
+    for disc in discipline_stats:
+        report += f"| {disc[1]} | {disc[0]} | {disc[2]:,} |\n"
     
     report += """
 ---
 
-## Category Performance
+## Top 10 Cost Codes by Extended Cost
 
-| Category | Bids | Accepted | Avg Bid | Conversion |
-|----------|------|----------|---------|------------|
+| Rank | Cost Code | Division | Item Type | Total Cost | Takeoffs |
+|------|-----------|----------|-----------|------------|----------|
 """
     
-    for cat in category_stats:
-        conv_rate = (cat[2] / cat[1] * 100) if cat[1] > 0 else 0
-        report += f"| {cat[0]} | {cat[1]} | {cat[2]} | ${cat[3]:,.2f} | {conv_rate:.1f}% |\n"
+    for i, cc in enumerate(top_cost_codes, 1):
+        report += f"| {i} | {cc[0]} | {cc[1]} | {cc[2]} | ${cc[3]:,.2f} | {cc[4]:,} |\n"
     
     report += f"""
 ---
 
-## Request Pipeline
+## Quality Assurance
 
 | Metric | Value |
 |--------|-------|
-| Total Requests | {request_stats[0]:,} |
-| Completed | {request_stats[1]:,} |
-| Open | {request_stats[2]:,} |
-| Average Budget | ${request_stats[3]:,.2f} |
+| Total QA Issues | {metrics['total_qa_issues']:,} |
+| Open Issues | {metrics['open_qa_issues']:,} |
+| Critical Issues | {metrics['critical_qa_issues']:,} |
+| Issues per Project | {metrics['issue_rate']:.2f} |
 
+---
+
+## Project Readiness Status
+
+| Status | Projects |
+|--------|----------|
+"""
+    
+    for status in readiness_stats:
+        report += f"| {status[0]} | {status[1]:,} |\n"
+    
+    report += """
 ---
 
 ## Data Quality
@@ -200,7 +250,8 @@ def metrics_report(
 
 ---
 
-*Report generated by IS 693R Dagster + dbt Demo Pipeline*
+*Report generated by Bidi Contracting Estimation Pipeline*
+*Dagster + dbt + DuckDB*
 """
     
     # Write report
@@ -213,11 +264,11 @@ def metrics_report(
         value=str(report_path),
         metadata={
             "report_path": MetadataValue.path(str(report_path)),
-            "total_gmv": MetadataValue.float(metrics["total_gmv"]),
-            "conversion_rate": MetadataValue.float(metrics["conversion_rate"]),
-            "customer_count": MetadataValue.int(metrics["customer_count"]),
-            "vendor_count": MetadataValue.int(metrics["vendor_count"]),
-            "preview": MetadataValue.md(report[:1500] + "\n\n*... (truncated)*"),
+            "project_count": MetadataValue.int(metrics["project_count"]),
+            "total_takeoffs": MetadataValue.int(metrics["total_takeoffs"]),
+            "avg_confidence": MetadataValue.float(metrics["avg_confidence"]),
+            "sum_estimate_mid": MetadataValue.float(metrics["sum_estimate_mid"]),
+            "open_qa_issues": MetadataValue.int(metrics["open_qa_issues"]),
+            "preview": MetadataValue.md(report[:2000] + "\n\n*... (truncated)*"),
         }
     )
-

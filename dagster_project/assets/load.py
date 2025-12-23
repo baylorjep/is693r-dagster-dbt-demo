@@ -3,6 +3,15 @@ Load asset: Load CSV data into DuckDB raw tables.
 
 This module takes the generated CSV files and loads them into
 the DuckDB warehouse as raw tables for dbt to transform.
+
+Data includes:
+- projects: Construction projects requiring estimation
+- blueprint_pages: Individual pages from plan sets
+- cost_library: Reference costs for materials and labor
+- takeoff_items: Extracted quantities from blueprints
+- estimates: Rolled-up cost estimates per project
+- estimate_line_items: Detailed breakdown by cost code
+- qa_reviews: Quality assurance reviews
 """
 
 from pathlib import Path
@@ -19,11 +28,13 @@ DATA_DIR = PROJECT_ROOT / "data" / "raw"
 
 # Table definitions with their CSV source files
 TABLES = [
-    "customers",
-    "vendors", 
-    "requests",
-    "bids",
-    "payments",
+    "projects",
+    "blueprint_pages",
+    "cost_library",
+    "takeoff_items",
+    "estimates",
+    "estimate_line_items",
+    "qa_reviews",
 ]
 
 
@@ -31,7 +42,7 @@ TABLES = [
     group_name="load",
     compute_kind="duckdb",
     deps=[AssetKey(["raw_csv_files"])],
-    description="Load raw CSV files into DuckDB warehouse tables",
+    description="Load raw CSV files into DuckDB warehouse tables for blueprint takeoff data",
 )
 def duckdb_raw_tables(
     context: AssetExecutionContext,
@@ -41,11 +52,13 @@ def duckdb_raw_tables(
     Load all CSV files into DuckDB as raw tables.
     
     Creates/replaces tables in the 'raw' schema:
-    - raw.customers
-    - raw.vendors
-    - raw.requests
-    - raw.bids
-    - raw.payments
+    - raw.projects
+    - raw.blueprint_pages
+    - raw.cost_library
+    - raw.takeoff_items
+    - raw.estimates
+    - raw.estimate_line_items
+    - raw.qa_reviews
     """
     table_info = {}
     
@@ -89,12 +102,13 @@ def duckdb_raw_tables(
         metadata={
             "total_rows": MetadataValue.int(total_rows),
             "tables_loaded": MetadataValue.int(len(table_info)),
-            "customers_rows": MetadataValue.int(table_info.get("customers", {}).get("rows", 0)),
-            "vendors_rows": MetadataValue.int(table_info.get("vendors", {}).get("rows", 0)),
-            "requests_rows": MetadataValue.int(table_info.get("requests", {}).get("rows", 0)),
-            "bids_rows": MetadataValue.int(table_info.get("bids", {}).get("rows", 0)),
-            "payments_rows": MetadataValue.int(table_info.get("payments", {}).get("rows", 0)),
+            "projects_rows": MetadataValue.int(table_info.get("projects", {}).get("rows", 0)),
+            "blueprint_pages_rows": MetadataValue.int(table_info.get("blueprint_pages", {}).get("rows", 0)),
+            "cost_library_rows": MetadataValue.int(table_info.get("cost_library", {}).get("rows", 0)),
+            "takeoff_items_rows": MetadataValue.int(table_info.get("takeoff_items", {}).get("rows", 0)),
+            "estimates_rows": MetadataValue.int(table_info.get("estimates", {}).get("rows", 0)),
+            "estimate_line_items_rows": MetadataValue.int(table_info.get("estimate_line_items", {}).get("rows", 0)),
+            "qa_reviews_rows": MetadataValue.int(table_info.get("qa_reviews", {}).get("rows", 0)),
             "database_path": MetadataValue.path(duckdb.database_path),
         }
     )
-

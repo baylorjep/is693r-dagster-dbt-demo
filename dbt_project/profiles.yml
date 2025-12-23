@@ -1,4 +1,4 @@
-wedding_marketplace:
+bidi_contracting:
   target: dev
   outputs:
     dev:
@@ -9,4 +9,3 @@ wedding_marketplace:
       extensions:
         - httpfs
         - parquet
-

@@ -6,6 +6,8 @@ create Dagster assets from dbt models, enabling native orchestration.
 """
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 from dagster import AssetExecutionContext, AssetKey
@@ -15,19 +17,35 @@ from dagster_dbt import DbtCliResource, dbt_assets, DbtProject
 # Project paths
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 DBT_PROJECT_DIR = PROJECT_ROOT / "dbt_project"
+MANIFEST_PATH = DBT_PROJECT_DIR / "target" / "manifest.json"
 
 # Set environment variables for dbt
 os.environ["DBT_PROFILES_DIR"] = str(DBT_PROJECT_DIR)
 os.environ["DBT_DUCKDB_PATH"] = str(PROJECT_ROOT / "warehouse" / "analytics.duckdb")
 
-# Initialize dbt project
+# Ensure the venv's bin is first in PATH so dbt uses the right Python
+VENV_BIN = PROJECT_ROOT / ".venv" / "bin"
+os.environ["PATH"] = f"{VENV_BIN}:{os.environ.get('PATH', '')}"
+
+# Generate manifest if it doesn't exist, using the venv's dbt explicitly
+if not MANIFEST_PATH.exists():
+    dbt_executable = VENV_BIN / "dbt"
+    result = subprocess.run(
+        [str(dbt_executable), "parse", "--project-dir", str(DBT_PROJECT_DIR), "--profiles-dir", str(DBT_PROJECT_DIR)],
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+        cwd=str(PROJECT_ROOT),
+    )
+    if result.returncode != 0:
+        print(f"dbt parse failed: {result.stderr}")
+        raise RuntimeError(f"dbt parse failed: {result.stderr}")
+
+# Initialize dbt project with pre-existing manifest
 dbt_project = DbtProject(
     project_dir=DBT_PROJECT_DIR,
     profiles_dir=DBT_PROJECT_DIR,
 )
-
-# Prepare dbt manifest (parse project) - this generates manifest.json
-dbt_project.prepare_if_dev()
 
 
 @dbt_assets(

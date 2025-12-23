@@ -2,167 +2,235 @@ version: 2
 
 sources:
   - name: raw
-    description: "Raw data loaded from CSV files into DuckDB"
+    description: "Raw data loaded from CSV files into DuckDB for Bidi Contracting blueprint takeoffs"
     schema: raw
     tables:
-      - name: customers
-        description: "Customer information - people seeking wedding services"
+      - name: projects
+        description: "Construction projects requiring cost estimation"
         columns:
-          - name: customer_id
-            description: "Primary key for customers"
+          - name: project_id
+            description: "Primary key for projects"
             data_tests:
               - unique
               - not_null
-          - name: first_name
-            description: "Customer first name"
-          - name: last_name
-            description: "Customer last name"
-          - name: email
-            description: "Customer email address"
-            data_tests:
-              - not_null
-          - name: phone
-            description: "Customer phone number"
-          - name: city
-            description: "Customer city"
-          - name: state
-            description: "Customer state (2-letter code)"
-          - name: created_at
-            description: "Timestamp when customer was created"
-
-      - name: vendors
-        description: "Vendor information - service providers"
-        columns:
-          - name: vendor_id
-            description: "Primary key for vendors"
-            data_tests:
-              - unique
-              - not_null
-          - name: business_name
-            description: "Vendor business name"
-          - name: contact_name
-            description: "Primary contact name"
-          - name: email
-            description: "Vendor email address"
-          - name: phone
-            description: "Vendor phone number"
-          - name: category
-            description: "Service category"
+          - name: client_name
+            description: "Name of the client company"
+          - name: project_name
+            description: "Name of the construction project"
+          - name: project_type
+            description: "Type of construction project"
             data_tests:
               - accepted_values:
-                  values: ['Photography', 'Videography', 'Catering', 'Florist', 
-                          'DJ/Music', 'Wedding Planner', 'Cake/Bakery', 
-                          'Hair & Makeup', 'Officiant', 'Transportation']
-          - name: city
-            description: "Vendor city"
-          - name: state
-            description: "Vendor state"
-          - name: rating
-            description: "Average vendor rating (1-5)"
-          - name: hourly_rate
-            description: "Vendor hourly rate in USD"
-          - name: years_experience
-            description: "Years of experience"
-          - name: created_at
-            description: "Timestamp when vendor was created"
-
-      - name: requests
-        description: "Service requests from customers"
-        columns:
-          - name: request_id
-            description: "Primary key for requests"
-            data_tests:
-              - unique
-              - not_null
-          - name: customer_id
-            description: "Foreign key to customers"
-            data_tests:
-              - not_null
-              - relationships:
-                  to: source('raw', 'customers')
-                  field: customer_id
-          - name: category
-            description: "Service category requested"
-          - name: event_date
-            description: "Date of the event"
-          - name: event_city
-            description: "City where event will be held"
-          - name: event_state
-            description: "State where event will be held"
-          - name: budget
-            description: "Customer budget for the service"
-          - name: guest_count
-            description: "Expected number of guests"
+                  values: ['residential', 'commercial', 'industrial', 'mixed_use']
+          - name: location_state
+            description: "State where project is located (2-letter code)"
+          - name: bid_date
+            description: "Date the bid is due"
+          - name: plan_set_version
+            description: "Version of the plan set being estimated"
           - name: status
-            description: "Request status"
+            description: "Current project status"
             data_tests:
               - accepted_values:
-                  values: ['open', 'in_progress', 'completed', 'cancelled']
-          - name: description
-            description: "Request description"
+                  values: ['pending', 'in_progress', 'completed', 'on_hold']
           - name: created_at
-            description: "Timestamp when request was created"
+            description: "Timestamp when project was created"
 
-      - name: bids
-        description: "Vendor bids on customer requests"
+      - name: blueprint_pages
+        description: "Individual pages from construction plan sets"
         columns:
-          - name: bid_id
-            description: "Primary key for bids"
+          - name: page_id
+            description: "Primary key for blueprint pages"
             data_tests:
               - unique
               - not_null
-          - name: request_id
-            description: "Foreign key to requests"
+          - name: project_id
+            description: "Foreign key to projects"
             data_tests:
               - not_null
               - relationships:
-                  to: source('raw', 'requests')
-                  field: request_id
-          - name: vendor_id
-            description: "Foreign key to vendors"
-            data_tests:
-              - not_null
-              - relationships:
-                  to: source('raw', 'vendors')
-                  field: vendor_id
-          - name: bid_amount
-            description: "Bid amount in USD"
-          - name: estimated_hours
-            description: "Estimated hours for the service"
-          - name: message
-            description: "Vendor message to customer"
-          - name: status
-            description: "Bid status"
+                  to: source('raw', 'projects')
+                  field: project_id
+          - name: sheet_number
+            description: "Sheet number identifier (e.g., A01, S02)"
+          - name: discipline
+            description: "Engineering discipline (A=Architectural, S=Structural, C=Civil, M=Mechanical, E=Electrical, P=Plumbing)"
             data_tests:
               - accepted_values:
-                  values: ['pending', 'accepted', 'rejected', 'withdrawn']
+                  values: ['A', 'S', 'C', 'M', 'E', 'P']
+          - name: page_title
+            description: "Title of the blueprint page"
+          - name: image_path
+            description: "Path to the blueprint image file"
+          - name: page_version
+            description: "Version number of this page"
           - name: created_at
-            description: "Timestamp when bid was created"
+            description: "Timestamp when page was processed"
 
-      - name: payments
-        description: "Payments for accepted bids"
+      - name: cost_library
+        description: "Reference library of material and labor costs by CSI division"
         columns:
-          - name: payment_id
-            description: "Primary key for payments"
+          - name: cost_code
+            description: "Unique cost code identifier (CSI format)"
             data_tests:
               - unique
               - not_null
-          - name: bid_id
-            description: "Foreign key to bids"
+          - name: division
+            description: "CSI division number"
+          - name: division_name
+            description: "Name of the CSI division"
+          - name: item_type
+            description: "Type of item (e.g., door, window, pipe)"
+          - name: uom
+            description: "Unit of measure"
+          - name: unit_cost_low
+            description: "Low estimate unit cost in USD"
+          - name: unit_cost_mid
+            description: "Mid-range estimate unit cost in USD"
+          - name: unit_cost_high
+            description: "High estimate unit cost in USD"
+          - name: last_updated
+            description: "Date when cost was last updated"
+
+      - name: takeoff_items
+        description: "Extracted quantities from blueprint pages (AI or manual)"
+        columns:
+          - name: takeoff_id
+            description: "Primary key for takeoff items"
+            data_tests:
+              - unique
+              - not_null
+          - name: project_id
+            description: "Foreign key to projects"
             data_tests:
               - not_null
               - relationships:
-                  to: source('raw', 'bids')
-                  field: bid_id
-          - name: amount
-            description: "Payment amount in USD"
-          - name: payment_method
-            description: "Payment method used"
+                  to: source('raw', 'projects')
+                  field: project_id
+          - name: page_id
+            description: "Foreign key to blueprint pages"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'blueprint_pages')
+                  field: page_id
+          - name: cost_code
+            description: "Foreign key to cost library"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'cost_library')
+                  field: cost_code
+          - name: item_type
+            description: "Type of item extracted"
+          - name: quantity
+            description: "Quantity extracted from blueprint"
+          - name: uom
+            description: "Unit of measure"
+          - name: confidence
+            description: "AI confidence score (0.0 to 1.0)"
+          - name: extraction_method
+            description: "Method used for extraction"
             data_tests:
               - accepted_values:
-                  values: ['credit_card', 'bank_transfer', 'paypal', 'check']
-          - name: payment_date
-            description: "Date payment was made"
-          - name: processed_at
-            description: "Timestamp when payment was processed"
+                  values: ['ai', 'manual', 'hybrid']
+          - name: created_at
+            description: "Timestamp when takeoff was created"
 
+      - name: estimates
+        description: "Rolled-up cost estimates per project version"
+        columns:
+          - name: estimate_id
+            description: "Primary key for estimates"
+            data_tests:
+              - unique
+              - not_null
+          - name: project_id
+            description: "Foreign key to projects"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'projects')
+                  field: project_id
+          - name: estimate_version
+            description: "Version number of the estimate"
+          - name: estimate_total_low
+            description: "Low estimate total in USD"
+          - name: estimate_total_mid
+            description: "Mid-range estimate total in USD"
+          - name: estimate_total_high
+            description: "High estimate total in USD"
+          - name: generated_at
+            description: "Timestamp when estimate was generated"
+          - name: estimation_method
+            description: "Method used for estimation"
+            data_tests:
+              - accepted_values:
+                  values: ['ai', 'manual', 'hybrid']
+
+      - name: estimate_line_items
+        description: "Detailed estimate breakdown by cost code"
+        columns:
+          - name: line_item_id
+            description: "Primary key for line items"
+            data_tests:
+              - unique
+              - not_null
+          - name: estimate_id
+            description: "Foreign key to estimates"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'estimates')
+                  field: estimate_id
+          - name: cost_code
+            description: "Cost code for this line item"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'cost_library')
+                  field: cost_code
+          - name: item_type
+            description: "Type of item"
+          - name: quantity
+            description: "Total quantity for this cost code"
+          - name: uom
+            description: "Unit of measure"
+          - name: unit_cost_mid
+            description: "Unit cost used for calculation"
+          - name: extended_cost_mid
+            description: "Extended cost (quantity * unit_cost)"
+
+      - name: qa_reviews
+        description: "Quality assurance reviews and issues"
+        columns:
+          - name: review_id
+            description: "Primary key for QA reviews"
+            data_tests:
+              - unique
+              - not_null
+          - name: project_id
+            description: "Foreign key to projects"
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'projects')
+                  field: project_id
+          - name: page_id
+            description: "Optional foreign key to blueprint page"
+          - name: takeoff_id
+            description: "Optional foreign key to takeoff item"
+          - name: issue_type
+            description: "Type of QA issue"
+            data_tests:
+              - accepted_values:
+                  values: ['missing_item', 'quantity_mismatch', 'wrong_uom', 'duplicate', 'low_confidence', 'cost_outlier']
+          - name: severity
+            description: "Issue severity level"
+            data_tests:
+              - accepted_values:
+                  values: ['low', 'medium', 'high', 'critical']
+          - name: resolved
+            description: "Whether the issue has been resolved"
+          - name: reviewed_at
+            description: "Timestamp when review was conducted"

@@ -1,82 +1,109 @@
 version: 2
 
 models:
-  - name: dim_customers
-    description: "Customer dimension with lifetime metrics and segments"
+  - name: fct_takeoffs
+    description: "Takeoff fact table with denormalized context - one row per extracted takeoff item"
     columns:
-      - name: customer_id
+      - name: takeoff_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: customer_segment
-        description: "Customer value segment based on lifetime value"
+      - name: project_id
+        description: "Foreign key to projects"
+        data_tests:
+          - not_null
+      - name: page_id
+        description: "Foreign key to blueprint pages"
+        data_tests:
+          - not_null
+      - name: cost_code
+        description: "Foreign key to cost library"
+        data_tests:
+          - not_null
+      - name: quantity
+        description: "Quantity extracted from blueprint"
+        data_tests:
+          - not_null
+      - name: confidence
+        description: "AI confidence score (0-1)"
+        data_tests:
+          - not_null
+      - name: extraction_method
+        description: "Method used for extraction"
         data_tests:
           - accepted_values:
-              values: ['VIP', 'Gold', 'Silver', 'Bronze', 'Prospect']
-      - name: lifetime_value
-        description: "Total payments made by customer"
+              values: ['ai', 'manual', 'hybrid']
 
-  - name: dim_vendors
-    description: "Vendor dimension with performance statistics"
+  - name: fct_estimates
+    description: "Estimate fact table - one row per estimate version per project"
     columns:
-      - name: vendor_id
+      - name: estimate_id
         description: "Primary key"
         data_tests:
           - unique
           - not_null
-      - name: partner_level
-        description: "Vendor partnership tier based on revenue"
+      - name: project_id
+        description: "Foreign key to projects"
+        data_tests:
+          - not_null
+      - name: estimate_total_mid
+        description: "Mid-range estimate total in USD"
+        data_tests:
+          - not_null
+      - name: estimation_method
+        description: "Method used for estimation"
         data_tests:
           - accepted_values:
-              values: ['Platinum Partner', 'Gold Partner', 'Silver Partner', 'Bronze Partner', 'New Vendor']
-      - name: win_rate_pct
-        description: "Percentage of bids that were accepted"
+              values: ['ai', 'manual', 'hybrid']
 
-  - name: fct_bids
-    description: "Bid fact table with denormalized context"
+  - name: mart_estimate_cost_breakdown
+    description: "Cost totals by cost code and item type per project estimate"
     columns:
-      - name: bid_id
-        description: "Primary key"
+      - name: estimate_id
+        description: "Foreign key to estimates"
+        data_tests:
+          - not_null
+      - name: cost_code
+        description: "Cost code for this breakdown"
+        data_tests:
+          - not_null
+      - name: extended_cost_mid
+        description: "Extended cost (quantity * unit_cost)"
+        data_tests:
+          - not_null
+
+  - name: mart_takeoff_quality_monitoring
+    description: "Quality metrics by project and discipline for monitoring takeoff accuracy"
+    columns:
+      - name: project_id
+        description: "Foreign key to projects"
+        data_tests:
+          - not_null
+      - name: discipline
+        description: "Engineering discipline code"
+        data_tests:
+          - accepted_values:
+              values: ['A', 'S', 'C', 'M', 'E', 'P']
+      - name: avg_confidence
+        description: "Average confidence score for discipline"
+      - name: pct_low_confidence
+        description: "Percentage of takeoffs with low confidence"
+
+  - name: mart_estimation_dashboard
+    description: "One row per project with headline metrics for estimation dashboard"
+    columns:
+      - name: project_id
+        description: "Primary key - one row per project"
         data_tests:
           - unique
           - not_null
-      - name: vendor_id
-        description: "Foreign key to vendors"
+      - name: estimate_total_mid
+        description: "Latest mid-range estimate total"
+      - name: avg_confidence
+        description: "Average takeoff confidence for project"
+      - name: readiness_status
+        description: "Overall project readiness status"
         data_tests:
-          - not_null
-          - relationships:
-              to: ref('dim_vendors')
-              field: vendor_id
-      - name: customer_id
-        description: "Foreign key to customers"
-        data_tests:
-          - not_null
-          - relationships:
-              to: ref('dim_customers')
-              field: customer_id
-      - name: bid_amount
-        description: "Bid amount in USD"
-        data_tests:
-          - not_null
-
-  - name: fct_payments
-    description: "Payment fact table with full transaction lineage"
-    columns:
-      - name: payment_id
-        description: "Primary key"
-        data_tests:
-          - unique
-          - not_null
-      - name: bid_id
-        description: "Foreign key to bids"
-        data_tests:
-          - not_null
-          - relationships:
-              to: ref('fct_bids')
-              field: bid_id
-      - name: payment_amount
-        description: "Payment amount in USD"
-        data_tests:
-          - not_null
-
+          - accepted_values:
+              values: ['No Estimate', 'Needs Review', 'In Progress', 'Ready']

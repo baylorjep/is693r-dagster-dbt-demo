@@ -14,7 +14,7 @@ DAGSTER := $(VENV)/bin/dagster
 
 help:
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(CYAN)    IS 693R Dagster + dbt Demo - Wedding Marketplace Pipeline  $(NC)"
+	@echo "$(CYAN)    Bidi Contracting - Blueprint Takeoff & Estimation Pipeline  $(NC)"
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(GREEN)Available commands:$(NC)"
@@ -45,7 +45,7 @@ install: setup
 demo: setup
 	@echo ""
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(CYAN)    Running Complete ELT Pipeline Demo                          $(NC)"
+	@echo "$(CYAN)    Running Complete Blueprint Estimation Pipeline              $(NC)"
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Step 1: Extracting raw data (generating CSVs)...$(NC)"
@@ -113,4 +113,3 @@ clean:
 	rm -rf __pycache__ dagster_project/__pycache__ dagster_project/assets/__pycache__ dagster_project/resources/__pycache__
 	rm -rf .dagster storage schedules logs
 	@echo "$(GREEN)✓ Cleanup complete!$(NC)"
-
